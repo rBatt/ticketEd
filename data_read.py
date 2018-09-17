@@ -4,6 +4,10 @@
 # info for nyc open data API
 # project app id: e1dcefa7
 # project api key: 50908d89c2c20a5555c4991a733f19a3
+app_id = "e1dcefa7"
+app_key = "50908d89c2c20a5555c4991a733f19a3"
+coordBasURL = "https://api.cityofnewyork.us//geoclient//v1//address.json?"
+
 
 #%% Other libraries
 import re
@@ -64,40 +68,16 @@ proj_dir = "/Users/Battrd/Documents/School&Work/Insight/parking"
 file_parkVio2017 = proj_dir + "/data/Parking_Violations_Issued_-_Fiscal_Year_2017.csv"
 
 
-#%% Generate table in postgres database
-chunksize = 1000  # number of rows to read at a time
-# i = 0
-# j = 1
-# for df in pd.read_csv(file_parkVio2017, chunksize=chunksize, iterator=True):
-#       df = df.rename(columns={c: c.replace(' ', '') for c in df.columns})  # removes spaces from any column names
-#       df.index += j
-#       i+=1
-#       df.to_sql("parkVio2017", engine, if_exists="append")
-#       j = df.index[-1] + 1
-
-
 #%% Unique elements of categorical columns
-u_county = engine.execute('SELECT DISTINCT "ViolationCounty" FROM "parkVio2017";').fetchall()  # 13
-u_precinct = engine.execute('SELECT DISTINCT "ViolationPrecinct" FROM "parkVio2017";').fetchall()  # 213
-u_street = engine.execute('SELECT DISTINCT "StreetName" FROM "parkVio2017";').fetchall()  # 84216 streets
-u_post = engine.execute('SELECT DISTINCT "ViolationPostCode" FROM "parkVio2017";').fetchall()  # 1159
-
-
+# u_county = engine.execute('SELECT DISTINCT "ViolationCounty" FROM "parkVio2017";').fetchall()  # 13
+# u_precinct = engine.execute('SELECT DISTINCT "ViolationPrecinct" FROM "parkVio2017";').fetchall()  # 213
+# u_street = engine.execute('SELECT DISTINCT "StreetName" FROM "parkVio2017";').fetchall()  # 84216 streets
+# u_post = engine.execute('SELECT DISTINCT "ViolationPostCode" FROM "parkVio2017";').fetchall()  # 1159
 
 
 #%% Overview Query of pv2017
 con = None
 con = psycopg2.connect(database = dbname, user = username)
-
-# didn't work, except when i had table_name instead of "parkVio2017
-# sum_q = """
-# select column_name,data_type
-# from information_schema.columns
-# where table_name = "parkVio2017";
-# """
-# engine.execute(sum_q).fetchall()
-
-# engine.execute('SELECT * FROM "parkVio2017" LIMIT 5;').fetchall() # mind the fucking quotes and the mixed case ... holy shit ... https://stackoverflow.com/a/12250721/2343633
 
 
 sql_query = """
@@ -111,33 +91,10 @@ pv17_from_sql = pd.read_sql_query(sql_query,con, parse_dates={"IssueDate": "%m/%
 
 #%% Format Columns
 pv17_from_sql['IssueDate'] = pd.to_datetime(pv17_from_sql['IssueDate'], format="%m/%d/%Y")
-# pv17_from_sql.head()
-# pv17_from_sql.tail()
 
 # sts_in_13th = pv17_from_sql[pv17_from_sql.ViolationPrecinct==13].StreetName.unique()
 # pv17_from_sql.IssueDate.head()
 
-
-#%% Plotting for Week 1 Demo
-# pv17_nByDate = pv17_from_sql.groupby(by=["IssueDate"]).size().reset_index(name="counts")
-# start_date = "2016-06-01" #pd.to_datetime(["2016-06-01"])
-# end_date = "2017-06-27" #pd.to_datetime(["2017-12-31"])
-# mask = (pv17_nByDate["IssueDate"] > start_date) & (pv17_nByDate["IssueDate"] < end_date)
-# pv17_nByDate = pv17_nByDate[mask]
-#
-# import matplotlib.pyplot as plt
-# from matplotlib.dates import DateFormatter
-# fig = plt.figure(facecolor='white') # uses matplotlib.pyplot imported as plt
-# ax = fig.add_subplot(111)
-# ax.plot(pv17_nByDate[['IssueDate']], pv17_nByDate[['counts']], color='black', linewidth=3, marker='o', label='Number of Tickets')
-# plt.ylabel("Tickets Issued per Day")
-# plt.xlabel("Date")
-# plt.title("Manhattan 2017")
-# # ax.set_axis_bgcolor("white")
-# plt.legend()
-# myFmt = DateFormatter("%b-%d \n %Y")
-# ax.xaxis.set_major_formatter(myFmt)
-# plt.show()
 
 
 #%% Function to fix dates
@@ -181,64 +138,10 @@ def fix_dt(X):
 pv17_from_sql["datetime"] = fix_dt(pv17_from_sql)
 pv17_from_sql = pv17_from_sql.drop(columns=["IssueDate", "ViolationTime"])
 
-# WHAT FOLLOWS [COMMENTED] IS OLD CODE WRAPPED INTO ABOVE FUNCTION
-#%% Make true dates
-# park_date = pd.Series(pv17_from_sql["IssueDate"].dt.date.map(str))  # .reset_index(name="IssueDate")
-# park_time = pd.Series(pv17_from_sql["ViolationTime"])  # .reset_index(name="IssueDate")
-#
-#
-# # check of odd characters, like '.'
-# # import re
-# bad_dot_time = park_time.map(lambda x: bool(re.match(".*\\..*", x)))
-# # park_time[bad_dot_time] # one of these values is .359A ... assuming the '.' should be a number, only '0' would work here as a replacement
-# park_time[bad_dot_time] = park_time[bad_dot_time].map(lambda x: re.sub("\\.", "0", x))
-#
-#
-# # figure out where the weird times are
-# # specifically focusing on the times starting with double-0's, vs a 12
-# double0_time = park_time.map(lambda x: x[0:2]=='00') # 15008
-# double0_time_A = park_time.map(lambda x: x[0:2]=='00' and x[-1]=='A') # 14918
-# double0_time_P = park_time.map(lambda x: x[0:2]=='00' and x[-1]=='P') # 90
-# time_12 = park_time.map(lambda x: x[0:2]=="12") # 273522
-# time_12_A = park_time.map(lambda x: x[0:2]=="12" and x[-1]=='A') # 9272
-# time_12_P = park_time.map(lambda x: x[0:2]=="12" and x[-1]=="P") # 264249
-#
-# import re
-# park_time[double0_time] = park_time[double0_time].map(lambda x: re.sub('^00', '12', x)) # because of the indexing, i could have just replaced first 2 characters, but wanted to be make sure, and to use the 're' library
-#
-#
-# # in some cases an AM/PM indicator is missing; this should present as 1 less character
-# badTime_short = park_time.map(str).map(len)==4 # 8 instances where this is true
-# park_time[badTime_short] = park_time[badTime_short] + "A"
-#
-#
-# # create a list that is date+time
-# datetime_col = park_date + park_time
-#
-#
-# # chage "A" to "AM", and "P" to "PM" so it conforms to convention
-# datetime_col = datetime_col.str.replace('[A]+$', 'AM') # sometimes there were indicators like "AA" instead of "AM" or "A"
-# datetime_col = datetime_col.str.replace('[P]+$', 'PM')
-# # datetime_col.map(str).map(len).unique()
-# # '2017-01-190007AM'[10:12]=='00'
-#
-#
-# # badTime_hour = datetime_col.map(lambda x: x[10:12]=='00') # fixed this above, and explored more thoroughly
-#
-#
-# # Format to actual datetime object
-# datetime_col = pd.to_datetime(datetime_col, format="%Y-%m-%d%I%M%p", errors='coerce')
-# # sum(pd.isnull(datetime_col)) # 39 instances where the dates couldn't be converted; this is very small
-# # when i need to round() the datetimes later, can do something like dt.ceil('15min'); round() is nearest, floor() also works
-
-
-
 
 #%% Make day of week column
 
 dow_col = [i.dayofweek for i in datetime_col] # a bit slow (this is called a list comprehension), maybe next time try map()
-
-
 
 
 #%% Make true locations, get coordinates
