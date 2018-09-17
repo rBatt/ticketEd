@@ -4,9 +4,6 @@
 # info for nyc open data API
 # project app id: e1dcefa7
 # project api key: 50908d89c2c20a5555c4991a733f19a3
-app_id = "e1dcefa7"
-app_key = "50908d89c2c20a5555c4991a733f19a3"
-coordBasURL = "https://api.cityofnewyork.us//geoclient//v1//address.json?"
 
 
 #%% Other libraries
@@ -79,6 +76,13 @@ file_parkVio2017 = proj_dir + "/data/Parking_Violations_Issued_-_Fiscal_Year_201
 con = None
 con = psycopg2.connect(database = dbname, user = username)
 
+headQ = """
+    SELECT "StreetCode1", "StreetCode2", "StreetCode3", "ViolationLocation", "ViolationCounty", "HouseNumber", "StreetName", "IntersectingStreet", "SubDivision"
+    FROM "parkVio2017" 
+    LIMIT 5;
+"""
+d = pd.read_sql_query(headQ,con)
+
 
 sql_query = """
   SELECT "index", "SummonsNumber", "IssueDate", "ViolationCode", "ViolationLocation", "ViolationPrecinct", "ViolationTime", "ViolationCounty", "HouseNumber", "StreetName", "IntersectingStreet", "SubDivision", "ViolationLegalCode", "ViolationPostCode"
@@ -140,8 +144,12 @@ pv17_from_sql = pv17_from_sql.drop(columns=["IssueDate", "ViolationTime"])
 
 
 #%% Make day of week column
-
+# TODO need to finish this and add it to the dataframe, will be a useful feature
 dow_col = [i.dayofweek for i in datetime_col] # a bit slow (this is called a list comprehension), maybe next time try map()
+
+
+
+
 
 
 #%% Make true locations, get coordinates
@@ -158,6 +166,37 @@ from pygeocoder import Geocoder
 results = Geocoder.geocode("Tian'anmen, Beijing")
 print(results[0].coordinates)
 
+import json
+import urllib
+app_id = "e1dcefa7"
+app_key = "50908d89c2c20a5555c4991a733f19a3"
+coordBaseURL = "https://api.cityofnewyork.us//geoclient//v1//search.json?" # can replace 'search' with 'address' if that's what you have
+
+# urlAddr = coordBasURL + urllib.urlencode({"houseNumber": housenumber, "street": streetname, "borough": bc, "app_id": app_id, "app_key": app_key})
+
+# test format using insight address
+urlAddr = coordBaseURL + urllib.parse.urlencode({"houseNumber": 35, "street": "E 21st St", "borough": 1, "app_id": app_id, "app_key": app_key})
+response = urllib.request.urlopen(urlAddr)
+data = json.load(response)
 
 
+# some examples from 2017, location columns
+#    StreetCode1  StreetCode2  StreetCode3  ViolationLocation ViolationCounty HouseNumber            StreetName IntersectingStreet SubDivision
+# 0            0            0            0                NaN              BX        None  ALLERTON AVE (W/B) @         BARNES AVE           D
+# 1            0            0            0                NaN              BX        None  ALLERTON AVE (W/B) @         BARNES AVE           D
+# 2            0            0            0                NaN              BX        None  SB WEBSTER AVE @ E 1            94TH ST           C
+# 3        10610        34330        34350               14.0              NY         330               7th Ave               None          l2
+# 4        10510        34310        34330               13.0              NY         799               6th Ave               None          h1
+# can i use any of these to easily query?
+# goal would be to enter something like street code, and get a result that looks like the English descriptors
+# example of 10-digit BBL from API website: 1000670001
+# example of 7-digit BIN from API website: 1079043
+# coordBasURL_gen = "https://api.cityofnewyork.us//geoclient//v1//search.json?"
+# urlBBL = coordBasURL_gen + urllib.parse.urlencode({"input": "1000670001", "app_id": app_id, "app_key": app_key})
+# response = urllib.request.urlopen(urlBBL)
+# data = json.load(response)
 
+sc12_test_url = coordBasURL_gen + urllib.parse.urlencode({"input": "Webster and 94th", "app_id": app_id, "app_key": app_key}) # the input is just street code 1 and 2 from row 3, concat'd
+response = urllib.request.urlopen(sc12_test_url)
+data = json.load(response)
+data
