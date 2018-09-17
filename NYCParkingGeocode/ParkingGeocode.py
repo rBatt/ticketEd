@@ -1,4 +1,3 @@
-import urllib2
 import urllib
 import json
 import csv
@@ -7,8 +6,8 @@ import os
 import time
 
 # Request app_id and app_key from http://developer.cityofnewyork.us/api/geoclient-api-beta
-app_id = 'xxxxxxx'
-app_key = 'xxxxxxxxxxxxxxxxxxxxxxxx'
+app_id = "e1dcefa7"
+app_key = "50908d89c2c20a5555c4991a733f19a3"
 
 
 class precinct:
