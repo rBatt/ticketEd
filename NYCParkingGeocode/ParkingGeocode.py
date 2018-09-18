@@ -254,12 +254,12 @@ headerOut = "summonsnumber,housenumber,streetname,intersecStreet,street1,street2
 
 try:
 
-    dir = os.path.dirname(os.path.realpath(__file__)) + "\\"
+    dir = "/Users/Battrd/Documents/School&Work/Insight/parking/NYCParkingGeocode/"  #os.path.dirname(os.path.realpath(__file__)) + "\\"
 
     # all_accidents.csv
-    f = open(dir + 'SampleAddr.csv', 'rb')
+    f = open(dir + 'SampleAddr.csv', 'rt')
     # f = open(sys.argv[1], 'rb') # opens the csv file
-    ofile = open(dir + 'geocodedout.csv', "wb")
+    ofile = open(dir + 'geocodedout2.csv', "wt")
     plookup = createPrecinctLookup(dir)
     slookup = createStreetLookup(dir)
     blookup = createBoroAbbrvLookup(dir)
@@ -306,9 +306,9 @@ try:
         datesplit = r.issuedate.split('/')
         if (len(datesplit) < 3):
             continue
-        # other years unusable.  Create a histogram of data before using.
-        if (datesplit[2] <> '2013'):
-            continue
+        # # other years unusable.  Create a histogram of data before using.
+        # if (datesplit[2] != '2013'):
+        #     continue
 
         streetname = scrubStreet(r.streetname, srlookup)
 
@@ -369,11 +369,11 @@ try:
         if (
                 housenumber == '' or housenumber == '0' or housenumber == 'W' or housenumber == 'S' or housenumber == 'E' or housenumber == 'N'):
 
-            urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.urlencode(
+            urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.parse.urlencode(
                 {"crossStreetOne": streetname, "crossStreetTwo": intstreet, "borough": bc, "app_id": app_id,
                  "app_key": app_key, "compassDirection": "S"})
 
-            response = urllib2.urlopen(urlInt)
+            response = urllib.request.urlopen(urlInt)
             data = json.load(response)
             retCode = data["intersection"]["geosupportReturnCode"]
             if (retCode == "00"):
@@ -390,15 +390,15 @@ try:
                 data["intersection"]["message"].replace(',', ' '))
             elif (retCode == "EE"):
                 if (parseNameFromMessage(data["intersection"]["message"]) == streetname):
-                    urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.urlencode(
+                    urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.parse.urlencode(
                         {"crossStreetOne": data["intersection"]["streetName1"], "crossStreetTwo": intstreet,
                          "borough": bc, "app_id": app_id, "app_key": app_key, "compassDirection": "S"})
                 else:
-                    urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.urlencode(
+                    urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.parse.urlencode(
                         {"crossStreetOne": streetname, "crossStreetTwo": data["intersection"]["streetName1"],
                          "borough": bc, "app_id": app_id, "app_key": app_key, "compassDirection": "S"})
 
-                response = urllib2.urlopen(urlInt)
+                response = urllib.request.urlopen(urlInt)
                 data = json.load(response)
                 retCode = data["intersection"]["geosupportReturnCode"]
                 if (retCode == "00"):
@@ -421,11 +421,11 @@ try:
                     0.0, "00", data["intersection"]["geosupportReturnCode"],
                     data["intersection"]["message"].replace(',', ' '))
             elif (retCode == "40"):
-                urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.urlencode(
+                urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.parse.urlencode(
                     {"crossStreetOne": streetname, "crossStreetTwo": intstreet, "borough": bc, "app_id": app_id,
                      "app_key": app_key, "compassDirection": "E"})
 
-                response = urllib2.urlopen(urlInt)
+                response = urllib.request.urlopen(urlInt)
                 data = json.load(response)
                 retCode = data["intersection"]["geosupportReturnCode"]
                 if (retCode == "00"):
@@ -455,10 +455,10 @@ try:
 
 
         else:
-            urlAddr = 'https://api.cityofnewyork.us//geoclient//v1//address.json?' + urllib.urlencode(
+            urlAddr = 'https://api.cityofnewyork.us//geoclient//v1//address.json?' + urllib.parse.urlencode(
                 {"houseNumber": housenumber, "street": streetname, "borough": bc, "app_id": app_id, "app_key": app_key})
 
-            response = urllib2.urlopen(urlAddr)
+            response = urllib.request.urlopen(urlAddr)
             data = json.load(response)
             retCode = data["address"]["geosupportReturnCode"]
             try:
@@ -480,11 +480,11 @@ try:
                 data["address"]["latitude"], data["address"]["longitude"], data["address"]["policePrecinct"],
                 data["address"]["geosupportReturnCode"], data["address"]["message"].replace(',', ' '))
             elif (retCode == "EE"):
-                urlAddr = 'https://api.cityofnewyork.us//geoclient//v1//address.json?' + urllib.urlencode(
+                urlAddr = 'https://api.cityofnewyork.us//geoclient//v1//address.json?' + urllib.parse.urlencode(
                     {"houseNumber": housenumber, "street": data["address"]["streetName1"], "borough": bc,
                      "app_id": app_id, "app_key": app_key})
 
-                response = urllib2.urlopen(urlAddr)
+                response = urllib.request.urlopen(urlAddr)
                 data = json.load(response)
                 retCode = data["address"]["geosupportReturnCode"]
                 if (retCode == "00"):
@@ -504,17 +504,17 @@ try:
                     r.summonsnumber, housenumber, r.streetname, r.intersectingstreet, street1, street2, street3, 0.0,
                     0.0, "00", data["address"]["geosupportReturnCode"], data["address"]["message"].replace(',', ' '))
 
-            elif (retCode == "42" and badAddrLon <> 0.0):
+            elif (retCode == "42" and badAddrLon != 0.0):
                 ret = '%s,%s,%s,%s,%s,%s,%s,%f,%f,%s,%s,%s\n' % (
                 r.summonsnumber, housenumber, r.streetname, r.intersectingstreet, street1, street2, badAddrLat,
                 badAddrLon, "00", data["address"]["geosupportReturnCode"], data["address"]["message"].replace(',', ' '))
 
-            elif (retCode == "42" and street1 <> '' and street2 <> ''):
-                urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.urlencode(
+            elif (retCode == "42" and street1 != '' and street2 != ''):
+                urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.parse.urlencode(
                     {"crossStreetOne": streetname, "crossStreetTwo": intstreet, "borough": bc, "app_id": app_id,
                      "app_key": app_key, "compassDirection": "S"})
 
-                response = urllib2.urlopen(urlInt)
+                response = urllib.request.urlopen(urlInt)
                 data = json.load(response)
                 retCode = data["intersection"]["geosupportReturnCode"]
                 if (retCode == "00"):
@@ -531,15 +531,15 @@ try:
                     data["intersection"]["message"].replace(',', ' '))
                 elif (retCode == "EE"):
                     if (parseNameFromMessage(data["intersection"]["message"]) == streetname):
-                        urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.urlencode(
+                        urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.parse.urlencode(
                             {"crossStreetOne": data["intersection"]["streetName1"], "crossStreetTwo": intstreet,
                              "borough": bc, "app_id": app_id, "app_key": app_key, "compassDirection": "S"})
                     else:
-                        urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.urlencode(
+                        urlInt = 'https://api.cityofnewyork.us//geoclient//v1//intersection.json?' + urllib.parse.urlencode(
                             {"crossStreetOne": streetname, "crossStreetTwo": data["intersection"]["streetName1"],
                              "borough": bc, "app_id": app_id, "app_key": app_key, "compassDirection": "S"})
 
-                    response = urllib2.urlopen(urlInt)
+                    response = urllib.request.urlopen(urlInt)
                     data = json.load(response)
                     retCode = data["intersection"]["geosupportReturnCode"]
                     if (retCode == "00"):
@@ -575,19 +575,19 @@ try:
                 "00", data["address"]["geosupportReturnCode"], data["address"]["message"].replace(',', ' '))
 
         splitret = ret.split(',')
-        if (len(splitret) <> 12):
+        if (len(splitret) != 12):
             continue
 
         ofile.writelines(ret)
 
         i = i + 1
 
-        if (i % 500 == 0):
+        if (i % 50 == 0):
             print
             i
             print
             time.time() - start, "seconds."
-            time.sleep(5)
+            time.sleep(0.5)
             start = time.time()
 
     print
@@ -598,6 +598,4 @@ except:
     print
     "Unexpected error:", sys.exc_info()[0]
     raise
-
-
 

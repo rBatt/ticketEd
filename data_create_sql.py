@@ -60,3 +60,4 @@ for df in pd.read_csv(file_parkVio2017, chunksize=chunksize, iterator=True):
       df.to_sql("parkVio2017", engine, if_exists="append")
       j = df.index[-1] + 1
 
+
