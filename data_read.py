@@ -8,6 +8,8 @@
 
 #%% Other libraries
 import re
+import matplotlib.pyplot as plt
+import numpy as np
 
 #%% Set up pycharm console display
 import pandas as pd
@@ -76,14 +78,6 @@ file_parkVio2017 = proj_dir + "/data/Parking_Violations_Issued_-_Fiscal_Year_201
 con = None
 con = psycopg2.connect(database = dbname, user = username)
 
-headQ = """
-    SELECT "StreetCode1", "StreetCode2", "StreetCode3", "ViolationLocation", "ViolationCounty", "HouseNumber", "StreetName", "IntersectingStreet", "SubDivision"
-    FROM "parkVio2017" 
-    LIMIT 5;
-"""
-d = pd.read_sql_query(headQ,con)
-
-
 sql_query = """
   SELECT "index", "SummonsNumber", "IssueDate", "ViolationCode", "ViolationLocation", "ViolationPrecinct", "ViolationTime", "ViolationCounty", "HouseNumber", "StreetName", "IntersectingStreet", "SubDivision", "ViolationLegalCode", "ViolationPostCode"
   FROM "parkVio2017"
@@ -143,9 +137,46 @@ pv17_from_sql["datetime"] = fix_dt(pv17_from_sql)
 pv17_from_sql = pv17_from_sql.drop(columns=["IssueDate", "ViolationTime"])
 
 
-#%% Make day of week column
-# TODO need to finish this and add it to the dataframe, will be a useful feature
-dow_col = [i.dayofweek for i in datetime_col] # a bit slow (this is called a list comprehension), maybe next time try map()
+# function to regularize a time series ... don't really need now
+# def regularize_ts(x, freq="15min"):
+#     x_ceil = x.map(lambda x: x.ceil(freq))
+#     df = pd.Series(0, index=x_ceil).sort_index()
+#     xout = pd.Series(df.asfreq(freq).index)
+#     return xout
+
+
+#%% Make round times and add time/ seasonality features
+# rounding
+rnd_freq = "15min"
+pv17_from_sql["datetime_rnd"] = pv17_from_sql["datetime"].dt.ceil(rnd_freq)  # map(lambda x: x.ceil(rnd_freq))
+
+# seasonality features
+pv17_from_sql["dow"] = [i.dayofweek for i in pv17_from_sql["datetime"]] # a bit slow (this is called a list comprehension), maybe next time try map()
+pv17_from_sql["hour"] = pv17_from_sql["datetime_rnd"].dt.hour
+pv17_from_sql["month"] = pv17_from_sql["datetime_rnd"].dt.month
+pv17_from_sql["minute"] = pv17_from_sql["datetime_rnd"].dt.minute
+
+
+#%% Do aggregation for export
+grp_by_cols = ['ViolationCounty', 'SubDivision', 'datetime_rnd', 'dow', "hour", "month", "minute"]
+pv17_grp = pv17_from_sql.groupby(grp_by_cols).size().reset_index(name="counts")
+
+
+#%% Make basline predictions via aggregating to weekday-hour
+# Get baseline prediction
+# Will be based purely on long-term averages of hour-dayofweek combinations
+pv17_how_dour_long = pv17_grp.pivot_table(index=['hour','dow'], values='counts', aggfunc=np.mean)
+pv17_how_dour_wide = pv17_grp.pivot_table(index=['hour'], columns='dow', values='counts', aggfunc=np.mean)
+pv17_how_dour_wide
+
+
+#%% Make heat map of number of tickets per dow-hour
+import seaborn as sns
+sns.heatmap(pv17_how_dour_wide, cmap='RdYlGn_r', linewidths=0.5, annot=True)
+plt.show()
+
+# plt.hist(np.log(pv17_grp["counts"]))
+# plt.show()
 
 
 
