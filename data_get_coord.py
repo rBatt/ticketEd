@@ -108,6 +108,7 @@ all_stNames = pv17_from_sql[all_noneInd & ~int_logic]["StreetName"] # all street
 
 # Get house names
 hn = pd.Series(pv17_from_sql[all_noneInd & ~int_logic]["HouseNumber"]) # get house names that are not part of intersections, and not associated with 'none' for street
+hn_miss_skip = hn.map(lambda x: x is None) | pd.isnull(hn) # sum(hn_miss_skip) == 5710
 hn[hn.map(lambda x: x is None)] = "" # if the house name is 'none', just set it to an empty string (see todo below ... need to skip over these when querying)
 hn[pd.isnull(hn)] = "" # also set other null forms to empty string
 # len(hn.unique()) # 10406
@@ -131,18 +132,37 @@ hn_block = hn_block.map(lambda x: re.sub("^$", "0", x))
 import numpy as np
 hn_block = (np.multiply(np.floor(hn_block.astype(float)/100), 100)).astype(int) + 50
 
+
 # str_length = hn_block.map(lambda x: min(3, len(x))) - 1
 # denom = str_length.map(lambda x: pow(10, x))
 # (np.multiply(np.floor(np.divide(hn_block.astype(float), denom)), denom)).astype(int)
 
 block_st = hn_block.astype(str) + " " + all_stNames
-block_st_uni = block_st.unique()
-# len(block_st_uni) # 31914
+block_st_dups_noHN = pd.Series(0, index=block_st).index.duplicated() | hn_miss_skip
+# block_st_uni = block_st[~block_st_dups] # block_st.unique() # gives same; 31857 elements
+block_st_uni = block_st[~block_st_dups_noHN] # both unduplicated AND not a missing house number; 30595 elements
+block_st_uni = block_st_uni.values
+
+
+#%% Build a key back to original dataframe, and also store lon lat in it
+# key back to original
+pv17_sub_key = pv17_from_sql[all_noneInd & ~int_logic][["SummonsNumber","HouseNumber","StreetName"]][~block_st_dups_noHN] # create this so easy to merge results back into original
+pv17_sub_key["block_st_uni"] = block_st_uni
+
+# store lon lat
+pv17_sub_key['lon'] = 0.0
+pv17_sub_key['lat'] = 0.0
+
+pv17_sub_key = pv17_sub_key.reset_index()
+
+# write to csv, to start
+# pv17_sub_key.to_csv(proj_dir+"/data_int/pv17_sub_key_coords.csv", index=False)
 
 
 #%% Loop through cleaned up block names and query NYC API for Lon/Lat
 import json
 import urllib
+import time
 app_id = "e1dcefa7"
 app_key = "50908d89c2c20a5555c4991a733f19a3"
 coordBaseURL = "https://api.cityofnewyork.us//geoclient//v1//search.json?" # can replace 'search' with 'address' if that's what you have
@@ -151,21 +171,40 @@ lon_vec = [None] * len(block_st_uni)
 lat_vec = [None] * len(block_st_uni)
 # for i in iter([0, 1, 2, 3]):
 # TODO need to skip indices when `hn` is None.
-for i in range(block_st_uni):
+for i in range(len(block_st_uni)):
+# for i in iter([0, 1, 2, 3]):
     t_add = block_st_uni[i]
-    urlAddr = coordBaseURL + urllib.parse.urlencode({"input": t_add, "app_id": app_id, "app_key": app_key})  # the input is just street code 1 and 2 from row 3, concat'd
-    response = urllib.request.urlopen(urlAddr)
-    data = json.load(response)
-    retCode = data['results'][0]["response"]["geosupportReturnCode"]
 
-    if retCode == "00" or retCode == "01":
-        lon = data['results'][0]["response"]["longitude"]
-        lat = data['results'][0]["response"]["latitude"]
-    else:
-        lon = 0.0
-        lat = 0.0
+    try:
+        urlAddr = coordBaseURL + urllib.parse.urlencode({"input": t_add, "app_id": app_id, "app_key": app_key})  # the input is just street code 1 and 2 from row 3, concat'd
+        response = urllib.request.urlopen(urlAddr)
+        data = json.load(response)
+        retCode = data['results'][0]["response"]["geosupportReturnCode"]
+
+        if retCode == "00" or retCode == "01":
+            lon = data['results'][0]["response"]["longitude"]
+            lat = data['results'][0]["response"]["latitude"]
+        else:
+            lon = 0.0
+            lat = 0.0
+
+    except Exception as e:
+        lon = -0.1
+        lat = -0.1
+
     lon_vec[i] = lon
     lat_vec[i] = lat
+
+    # pv17_sub_key['lon'][i] = lon
+    # pv17_sub_key['lat'][i] = lat
+    pv17_sub_key.loc[i, 'lon'] = lon
+    pv17_sub_key.loc[i, 'lat'] = lat
+
+    rand_pause = np.random.uniform(0.2, 0.9)
+    time.sleep(rand_pause)
+    if (i+1)%100:
+        pv17_sub_key.to_csv(proj_dir+"/data_int/pv17_sub_key_coords.csv", index=False)
+
 
 
 #%% Below is old test code
