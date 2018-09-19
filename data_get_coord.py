@@ -105,6 +105,7 @@ all_noneInd = pv17_from_sql["StreetName"].map(lambda x: not x is None)
 all_stNames = pv17_from_sql[all_noneInd & ~int_logic]["StreetName"] # all street names that aren't none or part of intersections
 # all_stNames = reduce_stNames(all_stNames) # use this if i want to try to standardize street names .. just tested, took a while, and seemed to return nothing ... be careful
 # len(all_stNames.unique()) # 10283
+all_county = pv17_from_sql[all_noneInd & ~int_logic]["ViolationCounty"] # used to specify the borough of the violation in the query
 
 # Get house names
 hn = pd.Series(pv17_from_sql[all_noneInd & ~int_logic]["HouseNumber"]) # get house names that are not part of intersections, and not associated with 'none' for street
@@ -137,7 +138,7 @@ hn_block = (np.multiply(np.floor(hn_block.astype(float)/100), 100)).astype(int) 
 # denom = str_length.map(lambda x: pow(10, x))
 # (np.multiply(np.floor(np.divide(hn_block.astype(float), denom)), denom)).astype(int)
 
-block_st = hn_block.astype(str) + " " + all_stNames
+block_st = hn_block.astype(str) + " " + all_stNames + ", " + all_county + ", NY"
 block_st_dups_noHN = pd.Series(0, index=block_st).index.duplicated() | hn_miss_skip
 # block_st_uni = block_st[~block_st_dups] # block_st.unique() # gives same; 31857 elements
 block_st_uni = block_st[~block_st_dups_noHN] # both unduplicated AND not a missing house number; 30595 elements
@@ -146,7 +147,7 @@ block_st_uni = block_st_uni.values
 
 #%% Build a key back to original dataframe, and also store lon lat in it
 # key back to original
-pv17_sub_key = pv17_from_sql[all_noneInd & ~int_logic][["SummonsNumber","HouseNumber","StreetName"]][~block_st_dups_noHN] # create this so easy to merge results back into original
+pv17_sub_key = pv17_from_sql[all_noneInd & ~int_logic][["SummonsNumber","HouseNumber","StreetName","ViolationCounty"]][~block_st_dups_noHN] # create this so easy to merge results back into original
 pv17_sub_key["block_st_uni"] = block_st_uni
 
 # store lon lat
@@ -200,9 +201,9 @@ for i in range(len(block_st_uni)):
     pv17_sub_key.loc[i, 'lon'] = lon
     pv17_sub_key.loc[i, 'lat'] = lat
 
-    rand_pause = np.random.uniform(0.2, 0.9)
+    rand_pause = np.random.uniform(0.1, 0.3)
     time.sleep(rand_pause)
-    if (i+1)%100:
+    if ((i+1) % 100) == 0:
         pv17_sub_key.to_csv(proj_dir+"/data_int/pv17_sub_key_coords.csv", index=False)
 
 

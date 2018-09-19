@@ -137,12 +137,14 @@ pv17_from_sql["datetime"] = fix_dt(pv17_from_sql)
 pv17_from_sql = pv17_from_sql.drop(columns=["IssueDate", "ViolationTime"])
 
 
-# function to regularize a time series ... don't really need now
-# def regularize_ts(x, freq="15min"):
-#     x_ceil = x.map(lambda x: x.ceil(freq))
-#     df = pd.Series(0, index=x_ceil).sort_index()
-#     xout = pd.Series(df.asfreq(freq).index)
-#     return xout
+#%%IMPORTANT: screen out dates that are out of range!!
+# year_mask = 2016 <= pv17_from_sql["datetime_rnd"].dt.year.astype(float) and pv17_from_sql["datetime_rnd"].dt.year.astype(float) <= 2017
+# year_mask = 2016 <= pv17_from_sql["datetime_rnd"].dt.year.astype(float) <= 2017
+date_float = pv17_from_sql["datetime"].dt.year.astype(float)
+year_mask_pt1 = 2016 <= date_float
+year_mask_pt2 = date_float <= 2017
+year_mask = year_mask_pt1 & year_mask_pt2
+pv17_from_sql = pv17_from_sql[year_mask]
 
 
 #%% Make round times and add time/ seasonality features
@@ -179,6 +181,24 @@ plt.show()
 # plt.show()
 
 
+#%% Export 15-min intermediate table for time series analysis in R
+# function to regularize a time series
+def regularize_ts(x, freq="15min"):
+    x_ceil = x.dt.ceil(freq)
+    # x_ceil = x.map(lambda x: x.ceil(freq))
+    df = pd.Series(0, index=x_ceil).sort_index()
+    xout = pd.Series(df.asfreq(freq).index)
+    return xout
 
 
+df = pd.Series(0, index=pv17_grp["datetime_rnd"].unique()).sort_index()
+xout = pd.DataFrame(df.asfreq(rnd_freq).index)
+xout.index.name = "datetime_rnd"
+
+# pv17_grp_reg = pd.merge(xout, pv17_grp, how='inner', on="datetime_rnd")
+pv17_grp.asfreq(rnd_freq)
+
+
+
+pv17_grp.to_csv(proj_dir + "/data_int/pv17_grp.csv", index=False)
 
