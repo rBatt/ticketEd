@@ -15,15 +15,22 @@ dat0 <- fread(file)
 dat0[,datetime_rnd:=as.POSIXct(datetime_rnd)]
 dat <- dat0[datetime_rnd>=as.POSIXct("2016-06-30") & datetime_rnd<=as.POSIXct("2017-6-30")]
 dat <- dat[order(datetime_rnd)]
+dat[,dow:=as.integer(dow)]
+dat[,hour:=as.integer(hour)]
+dat[,month:=as.integer(month)]
+dat[,minute:=as.integer(minute)]
 
 # ==========================
 # = Regularize Time Series =
 # ==========================
 reg_datetime_seq <- seq(from=dat[,min(datetime_rnd)], to=dat[,max(datetime_rnd)], by="15 min")
-reg_dt <- data.table(datetime_rnd:=reg_datetime_seq)
+reg_dt <- data.table(CJ(datetime_rnd=reg_datetime_seq, ViolationCounty=dat[,unique(ViolationCounty)], SubDivision=dat[,unique(SubDivision)]))
+reg_dt[,c("dow","hour","month","minute"):=list(dow=wday(datetime_rnd)-1, hour=hour(datetime_rnd), month=month(datetime_rnd), minute=minute(datetime_rnd))]
 
-dat2 <- merge(reg_dt, dat, on="datetime_rnd", all=TRUE)
+on_cols <- c("datetime_rnd", "ViolationCounty", "SubDivision", "dow", 'hour', "month", 'minute')
+dat2 <- merge(dat, reg_dt, by=on_cols, all=TRUE)
+dat2[is.na(counts), counts:=0]
 
-
+sapply(dat2, function(x)length(unique(x)))
 
 
