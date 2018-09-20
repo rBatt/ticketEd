@@ -5,14 +5,16 @@
 # ar_pois
 # level 0
 # some sort of wrapper function, not sure of exact linkage to functions below
-ar_pois <- function(dat, holdType=c("end"), nHold=672, nAhead=24*7*(60/nMin), nMin=15, date_col="datetime_rnd", resp_col="counts"){
+ar_pois <- function(dat, holdType=c("end"), nHold=672, nAhead=24*7*(60/nMin), nMin=15, date_col="datetime_rnd", resp_col="counts", time_preds=c("minute", "hour", "dow", "month")){
+	time_preds <- match.arg(time_preds, several.ok=TRUE)
+	
 	train_ind <- ar_pois_hold(dat, holdType, nHold, returnType="ind")
 	dat_train <- dat[train_ind]
 	dat_test <- dat[!train_ind]
 	
 	dt <- dat_train[,get(date_col)]
 	y <- dat_train[,get(resp_col)]
-	train_mod <- ar_pois_fit(y, xreg=time_factors(dt))
+	train_mod <- ar_pois_fit(y, xreg=time_factors(dt, types=time_preds))
 	
 	dat_forecast <- ar_pois_forecast(train_mod, nAhead=nAhead, nMin=nMin)
 	names_df <- names(dat_forecast)
@@ -25,12 +27,12 @@ ar_pois <- function(dat, holdType=c("end"), nHold=672, nAhead=24*7*(60/nMin), nM
 	
 	return(dat_out)
 }
-test_dat <- dat2[SubDivision=="C8" & datetime_rnd<="2017-06-27"]
-test <- ar_pois(test_dat)
-test[,plot(datetime_rnd, counts, col='black', type='l', ylim=range(c(counts, counts_hat)))]
-test[,lines(datetime_rnd, counts_hat, col='red')]
-dev.new(); test[,plot(counts, counts_hat)]
-test[,cor(counts, counts_hat)]
+# test_dat <- dat2[SubDivision=="C8" & datetime_rnd<="2017-06-27"]
+# test <- ar_pois(test_dat)
+# test[,plot(datetime_rnd, counts, col='black', type='l', ylim=range(c(counts, counts_hat)))]
+# test[,lines(datetime_rnd, counts_hat, col='red')]
+# dev.new(); test[,plot(counts, counts_hat)]
+# test[,cor(counts, counts_hat)]
 
 # ar_pois_hold
 # level 1a
@@ -86,7 +88,9 @@ ar_pois_fit <- function(y, xreg=NULL, lags=c(1,2,3,4, (24*(60/nMin))+c(-1,0,1), 
 # as input, will accept a fitted model and desired forecast horizon
 # will call update function
 
-ar_pois_forecast <- function(mod, nAhead=24*7*(60/nMin), nMin=15){
+ar_pois_forecast <- function(mod, nAhead=24*7*(60/nMin), nMin=15, time_preds=c("minute", "hour", "dow", "month")){
+	time_preds <- match.arg(time_preds, several.ok=TRUE)
+	
 	dat <- mod$data
 	dt <- dat[,"datetime"]
 	y <- dat[,"y"]
@@ -94,7 +98,7 @@ ar_pois_forecast <- function(mod, nAhead=24*7*(60/nMin), nMin=15){
 	# the time indices predictors can be made all at once for the
 	# entire forecast horizon, because it only depends on the time index/ datetime
 	dt_ahead <- seq(from=tail(dt, 1), by=nMin*60, length.out=nAhead+1)#[-1]
-	tf_ahead <- time_factors(dt_ahead, lag_max=1)
+	tf_ahead <- time_factors(dt_ahead, lag_max=1, types=time_preds)
 	
 	# the predictors that are lagged versions of the response can only be produced for 1 time step ahead
 	def_lags <- c(1,2,3,4, (24*(60/nMin))+c(-1,0,1), (7*24*(60/nMin))+c(-1,0,1))
