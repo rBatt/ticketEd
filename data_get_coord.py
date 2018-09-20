@@ -170,8 +170,8 @@ coordBaseURL = "https://api.cityofnewyork.us//geoclient//v1//search.json?" # can
 
 lon_vec = [None] * len(block_st_uni)
 lat_vec = [None] * len(block_st_uni)
+
 # for i in iter([0, 1, 2, 3]):
-# TODO need to skip indices when `hn` is None.
 for i in range(len(block_st_uni)):
 # for i in iter([0, 1, 2, 3]):
     t_add = block_st_uni[i]
@@ -186,8 +186,8 @@ for i in range(len(block_st_uni)):
             lon = data['results'][0]["response"]["longitude"]
             lat = data['results'][0]["response"]["latitude"]
         else:
-            lon = 0.0
-            lat = 0.0
+            lon = 0.1
+            lat = 0.1
 
     except Exception as e:
         lon = -0.1
@@ -201,12 +201,12 @@ for i in range(len(block_st_uni)):
     pv17_sub_key.loc[i, 'lon'] = lon
     pv17_sub_key.loc[i, 'lat'] = lat
 
-    rand_pause = np.random.uniform(0.1, 0.3)
+    rand_pause = np.random.uniform(0.2, 0.9)
     time.sleep(rand_pause)
-    if ((i+1) % 100) == 0:
-        pv17_sub_key.to_csv(proj_dir+"/data_int/pv17_sub_key_coords.csv", index=False)
+    if ((i+1) % 50) == 0:
+        pv17_sub_key.to_csv(proj_dir+"/data_int/pv17_sub_key_coords_2018-09-20_13-56.csv", index=False)
 
-
+# plt.plot(lon_vec, lat_vec)
 
 #%% Below is old test code
 # # urlAddr = coordBaseURL + urllib.parse.urlencode({"houseNumber": 35, "street": "E 21st St", "borough": 1, "app_id": app_id, "app_key": app_key})
