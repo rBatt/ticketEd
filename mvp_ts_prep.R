@@ -35,4 +35,10 @@ dat2[is.na(counts), counts:=0]
 # ================
 # = Write to CSV =
 # ================
+# save actual R object for compression, and so i don't have to re-convert to datetime class
+save(dat2, file=paste0(proj_dir,"/data_int","/mvp_ts_prep.RData"))
+
+# for csv, convert datetime to character
+dat2[,datetime_rnd:=as.character(datetime_rnd)]
 fwrite(dat2, paste0(proj_dir,"/data_int","/mvp_ts_prep.csv"))
+
