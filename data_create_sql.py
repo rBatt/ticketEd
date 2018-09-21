@@ -33,10 +33,10 @@
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy_utils import database_exists, create_database
-import psycopg2
+import os
 
 #  create a database (if it doesn't exist)
-username = 'Battrd'  # on computer, user name
+username = os.environ['HOME'] #'Battrd'  # on computer, user name
 dbname = 'parkVio'  # name of database (not table)
 engine = create_engine('postgres://%s@localhost/%s'%(username,dbname))
 print(engine.url)
@@ -45,7 +45,7 @@ if not database_exists(engine.url):
     create_database(engine.url)
 print(database_exists(engine.url))
 
-proj_dir = "/Users/Battrd/Documents/School&Work/Insight/parking"
+proj_dir = username + "/Documents/School&Work/Insight/parking"
 file_parkVio2017 = proj_dir + "/data/Parking_Violations_Issued_-_Fiscal_Year_2017.csv"
 
 
