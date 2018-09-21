@@ -2,9 +2,12 @@
 
 import pandas as pd
 import re
-from sqlalchemy import create_engine
-from sqlalchemy_utils import database_exists, create_database
 import psycopg2
+import os
+import numpy as np
+import json
+import urllib
+import time
 
 
 desired_width=320
@@ -13,12 +16,13 @@ pd.set_option('display.width', desired_width)
 pd.set_option('display.max_columns',65)
 
 
-
 #%% Begin playing with ways to add coordinates to the database
-proj_dir = "/Users/Battrd/Documents/School&Work/Insight/parking"
+username = os.environ['HOME'] # 'Battrd'  # on computer, user name
+proj_dir = username + "/Documents/School&Work/Insight/parking"
 file_parkVio2017 = proj_dir + "/data/Parking_Violations_Issued_-_Fiscal_Year_2017.csv"
 
-username = 'Battrd'  # on computer, user name
+
+
 dbname = 'parkVio'  # name of database (not table)
 con = None
 con = psycopg2.connect(database = dbname, user = username)
@@ -110,7 +114,7 @@ all_county = pv17_from_sql[all_noneInd & ~int_logic]["ViolationCounty"] # used t
 # Get house names
 hn = pd.Series(pv17_from_sql[all_noneInd & ~int_logic]["HouseNumber"]) # get house names that are not part of intersections, and not associated with 'none' for street
 hn_miss_skip = hn.map(lambda x: x is None) | pd.isnull(hn) # sum(hn_miss_skip) == 5710
-hn[hn.map(lambda x: x is None)] = "" # if the house name is 'none', just set it to an empty string (see todo below ... need to skip over these when querying)
+hn[hn.map(lambda x: x is None)] = "" # if the house name is 'none', just set it to an empty string
 hn[pd.isnull(hn)] = "" # also set other null forms to empty string
 # len(hn.unique()) # 10406
 
@@ -130,7 +134,6 @@ hn_block = hn_block.map(lambda x: re.sub("[{}]", "0", x))
 hn_block = hn_block.map(lambda x: re.sub("^$", "0", x))
 
 # convert cleaned up house numbers to a "block" by putting the number in 'hundreds'
-import numpy as np
 hn_block = (np.multiply(np.floor(hn_block.astype(float)/100), 100)).astype(int) + 50
 
 
@@ -139,6 +142,7 @@ hn_block = (np.multiply(np.floor(hn_block.astype(float)/100), 100)).astype(int) 
 # (np.multiply(np.floor(np.divide(hn_block.astype(float), denom)), denom)).astype(int)
 
 block_st = hn_block.astype(str) + " " + all_stNames + ", " + all_county + ", NY"
+#todo this script should actually start after this line ... the creation of blocks should be a new factor/ column in the data set that is modeled.
 block_st_dups_noHN = pd.Series(0, index=block_st).index.duplicated() | hn_miss_skip
 # block_st_uni = block_st[~block_st_dups] # block_st.unique() # gives same; 31857 elements
 block_st_uni = block_st[~block_st_dups_noHN] # both unduplicated AND not a missing house number; 30595 elements
@@ -161,9 +165,6 @@ pv17_sub_key = pv17_sub_key.reset_index()
 
 
 #%% Loop through cleaned up block names and query NYC API for Lon/Lat
-import json
-import urllib
-import time
 app_id = "e1dcefa7"
 app_key = "50908d89c2c20a5555c4991a733f19a3"
 coordBaseURL = "https://api.cityofnewyork.us//geoclient//v1//search.json?" # can replace 'search' with 'address' if that's what you have
@@ -205,6 +206,13 @@ for i in range(len(block_st_uni)):
     time.sleep(rand_pause)
     if ((i+1) % 50) == 0:
         pv17_sub_key.to_csv(proj_dir+"/data_int/pv17_sub_key_coords_2018-09-20_13-56.csv", index=False)
+
+
+# plt.scatter(np.array(lon_vec)[np.array(lon_vec)< -0.1], np.array(lat_vec)[np.array(lon_vec)<-0.1], s=2, c='black')
+# plt.ylabel("Latitude")
+# plt.xlabel("Longitude")
+# # plt.show()
+# plt.savefig(proj_dir + '/lon_lat_block_tickets.png', bbox_inches='tight', dpi=250)
 
 # plt.plot(lon_vec, lat_vec)
 
