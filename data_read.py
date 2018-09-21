@@ -1,15 +1,23 @@
-#!/Users/Battrd/anaconda3/bin/python
-# #!/usr/local/bin/python3
+
+
 
 # info for nyc open data API
 # project app id: e1dcefa7
 # project api key: 50908d89c2c20a5555c4991a733f19a3
 
 
+#%% Data Options
+# grp_by_cols = ['ViolationCounty', 'SubDivision', 'datetime_rnd', 'dow', "hour", "month", "minute"] # columns on which to aggregate
+grp_by_cols = ['ViolationCounty', 'ViolationPrecinct', 'datetime_rnd', 'dow', "hour", "month", "minute"] # columns on which to aggregate
+rnd_freq = "15min"
+#todo need to have this script include the creation of "blocks" that exist in the data_get_coord script ... i only created blocks there because i didn't want to query coordinates for every street address/ ticket, but the coordinate resolution should match the resolution of the data set i ultimate curate.
+
+
 #%% Other libraries
 import re
 import matplotlib.pyplot as plt
 import numpy as np
+
 
 #%% Set up pycharm console display
 import pandas as pd
@@ -19,42 +27,15 @@ pd.set_option('display.width', desired_width)
 pd.set_option('display.max_columns',65)
 
 
-#%% Notes about file sources
-
-# Not using this b/c it seems too slow to be worth the saved disk space, and a bit annoying to use their query system
-# Probably only worthwhile if I wanted to continuously update the data set
-#query = ("https://data.cityofnewyork.us/resource/aagd-wyjz.json?"
-#         "$limit=10000"
-#         )
-#raw_data = pd.read_json(query)
-
-# Parking Violations:
-#   2019 https://data.cityofnewyork.us/City-Government/Parking-Violations-Issued-Fiscal-Year-2019/pvqr-7yc4
-#   2018 https://data.cityofnewyork.us/City-Government/Parking-Violations-Issued-Fiscal-Year-2018/a5td-mswe
-#   2017 https://data.cityofnewyork.us/City-Government/Parking-Violations-Issued-Fiscal-Year-2017/2bnn-yakx
-#   2016 https://data.cityofnewyork.us/City-Government/Parking-Violations-Issued-Fiscal-Year-2016/kiv2-tbus
-#   2015 https://data.cityofnewyork.us/City-Government/Parking-Violations-Issued-Fiscal-Year-2015/c284-tqph
-#   2014 https://data.cityofnewyork.us/City-Government/Parking-Violations-Issued-Fiscal-Year-2014-August-/jt7v-77mi
-#   **Note that 2014 is a partial year\n
-
-# Open Parking and Camera Violations:
-#   data https://data.cityofnewyork.us/City-Government/Open-Parking-and-Camera-Violations/nc67-uf89
-#   eda vis https://data.cityofnewyork.us/City-Government/Open-Parking-and-Camera-Violations/i4p3-pe6a
-
-# Precinct shape (precinct_geo.csv):
-#   https://data.cityofnewyork.us/Public-Safety/Police-Precincts/78dh-3ptz
-
-# Parking Violation Codes:
-#   https://data.cityofnewyork.us/Transportation/DOF-Parking-Violation-Codes/ncbg-6agr
-
 #%% Create or check for postgres database
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy_utils import database_exists, create_database
 import psycopg2
+import os
 
 #  create a database (if it doesn't exist)
-username = 'Battrd'  # on computer, user name
+username = os.environ['HOME'] #'Battrd'  # on computer, user name
 dbname = 'parkVio'  # name of database (not table)
 engine = create_engine('postgres://%s@localhost/%s'%(username,dbname))
 print(engine.url)
@@ -63,7 +44,7 @@ if not database_exists(engine.url):
     create_database(engine.url)
 print(database_exists(engine.url))
 
-proj_dir = "/Users/Battrd/Documents/School&Work/Insight/parking"
+proj_dir = username + "/Documents/School&Work/Insight/parking"
 file_parkVio2017 = proj_dir + "/data/Parking_Violations_Issued_-_Fiscal_Year_2017.csv"
 
 
@@ -149,7 +130,6 @@ pv17_from_sql = pv17_from_sql[year_mask]
 
 #%% Make round times and add time/ seasonality features
 # rounding
-rnd_freq = "15min"
 pv17_from_sql["datetime_rnd"] = pv17_from_sql["datetime"].dt.ceil(rnd_freq)  # map(lambda x: x.ceil(rnd_freq))
 
 # seasonality features
@@ -160,7 +140,6 @@ pv17_from_sql["minute"] = pv17_from_sql["datetime_rnd"].dt.minute
 
 
 #%% Do aggregation for export
-grp_by_cols = ['ViolationCounty', 'SubDivision', 'datetime_rnd', 'dow', "hour", "month", "minute"]
 pv17_grp = pv17_from_sql.groupby(grp_by_cols).size().reset_index(name="counts")
 
 
