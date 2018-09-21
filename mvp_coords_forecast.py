@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 import psycopg2
+import os
 
 
 proj_dir = "~/Documents/School&Work/Insight/parking"
@@ -18,7 +19,7 @@ coords = coords[coords.lon < -1] # drop rows that are -0.1, 0, or 0.1, as there 
 #%% Load Original Data Set for Summons # (to match coords to subivision [in original data set] via SummonsNumber)
 file_parkVio2017 = proj_dir + "/data/Parking_Violations_Issued_-_Fiscal_Year_2017.csv"
 
-username = 'Battrd'  # on computer, user name
+username = os.environ['HOME'] # 'Battrd'  # on computer, user name
 dbname = 'parkVio'  # name of database (not table)
 con = None
 con = psycopg2.connect(database = dbname, user = username)
