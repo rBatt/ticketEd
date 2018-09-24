@@ -145,8 +145,10 @@ lag_design <- function(y, lags, nMin=15, update=FALSE){
 		tsVec_lag <- matrix(embed(tsVec0, lag_max+1)[,-1, drop=FALSE], nrow=1) #[,-(lag_max+1)]
 		dimnames(tsVec_lag) <- list(NULL, paste0('lag',1:lag_max))
 	}else{
-		tsVec_lag <- embed(tsVec0, lag_max+1)[,-(lag_max+1)]
-		dimnames(tsVec_lag) <- list(NULL, paste0('lag',lag_max:1))
+		# tsVec_lag <- embed(tsVec0, lag_max+1)[,-(lag_max+1)]
+# 		dimnames(tsVec_lag) <- list(NULL, paste0('lag',lag_max:1))
+		tsVec_lag <- embed(tsVec0, lag_max+1)[,-1]
+		dimnames(tsVec_lag) <- list(NULL, paste0('lag',1:lag_max))
 	}
 	
 	mod_X0 <- cbind(y=tsVec, tsVec_lag[,lags_names, drop=FALSE])
