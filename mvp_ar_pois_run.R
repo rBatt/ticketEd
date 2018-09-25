@@ -32,7 +32,7 @@ source(file.path(proj_dir, "mvp_ar_pois.R"))
 # = Forecast Options =
 # ====================
 nMin <- 15 # how many minutes between time steps?
-forecastHorizon <- 24*7*nMin # how many time steps ahead of most recent observation should the forecast go?
+forecastHorizon <- 24*7*2*nMin # how many time steps ahead of most recent observation should the forecast go?
 n_test <- forecastHorizon # how many time steps should be reserved for testing at end of time series? if you want to match forecast for the test set, forecastHorizon and n_test should be the same
 time_preds <- c("minute", "hour", "dow") #, "month")
 
