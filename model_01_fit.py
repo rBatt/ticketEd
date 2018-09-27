@@ -2,15 +2,15 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import sklearn
+# import sklearn
 
-import keras
-from keras.models import Sequential
-from keras.layers.recurrent import LSTM
-from keras.layers.core import Dense, Activation, Dropout
+# import keras
+# from keras.models import Sequential
+# from keras.layers.recurrent import LSTM
+# from keras.layers.core import Dense, Activation, Dropout
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error
-from sklearn.utils import shuffle
+# from sklearn.metrics import mean_squared_error
+# from sklearn.utils import shuffle
 
 
 #%% Options
@@ -120,6 +120,23 @@ results.summary()
 lag_order = results.k_ar
 mod_fore = results.forecast(pd.DataFrame(train_y).values[-lag_order:], test_size)
 
+# save model fit
+import pickle
+mod_fore_file_name = ('/Users/battrd/Documents/School&Work/Insight/parking' + '/data_int/model_01_VAR_mod_fore.pkl')
+mod_fore_file = open(mod_fore_file_name, 'wb')
+pickle.dump(mod_fore, file=mod_fore_file)
+mod_fore_file_name.close()
+
+results_file_name = ('/Users/battrd/Documents/School&Work/Insight/parking' + '/data_int/model_01_VAR_results.pkl')
+results_file = open(results_file_name, 'wb')
+pickle.dump(results, file=results_file)
+results_file.close()
+
+results_coefs_file_name = ('/Users/battrd/Documents/School&Work/Insight/parking' + '/data_int/model_01_VAR_results_coefs.pkl')
+results_coefs_file = open(results_coefs_file_name, 'wb')
+pickle.dump(results.coefs, file=results_coefs_file)
+results_coefs_file.close()
+
 #%% vector autoregression with exogenous input
 # http://www.statsmodels.org/devel/generated/statsmodels.tsa.statespace.varmax.VARMAX.html#statsmodels.tsa.statespace.varmax.VARMAX
 # http://www.statsmodels.org/devel/examples/notebooks/generated/statespace_varmax.html
@@ -131,4 +148,17 @@ mod_fore = results.forecast(pd.DataFrame(train_y).values[-lag_order:], test_size
 # mod = sm.tsa.VARMAX(endog[['dln_inv', 'dln_inc']], order=(2,0), trend='nc', exog=exog)
 # res = mod.fit(maxiter=1000, disp=False)
 # print(res.summary())
+import statsmodels.api as sm
+exog = train[['dow','hour']] # train.ViolationPrecinct==train.ViolationPrecinct.iloc[0],
+exog = exog[train.ViolationPrecinct==train.ViolationPrecinct.iloc[0]].reset_index(drop=True)
+exog = pd.get_dummies(exog, columns=['dow','hour'])
+modelX = sm.tsa.VARMAX(train_y, order=(24*4*1, 0), exog=exog)
+resultsX = modelX.fit(maxiter=1000, disp=False)
 
+lag_order = resultsX.k_ar
+mod_fore = resultsX.forecast(pd.DataFrame(train_y).values[-lag_order:], test_size)
+
+resultsX_file_name = ('/Users/battrd/Documents/School&Work/Insight/parking' + '/data_int/model_01_VARX_results.pkl')
+resultsX_file = open(resultsX_file_name, 'wb')
+pickle.dump(resultsX, file=resultsX_file)
+resultsX_file.close()
