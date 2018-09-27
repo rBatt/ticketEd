@@ -113,13 +113,14 @@ addPoly <- function(precinct=1, startTime, stopTime, duration){
 	xvals <- seq(startTime, stopTime, by=tStep)
 	resultsY <- tRes[datetime_rnd%in%xvals, counts_hat]
 	
-	colVec <- zCol(256, tRes[,do.call(':',as.list(range(round(counts_hat))))])
-	polyCol <- colVec[as.integer(round(mean(resultsY)))]
+	getQ <- function(x){quantile(x, seq(0.1, 0.9, length.out=100))}
+	colVec <- zCol(256, c(mean(resultsY), getQ(tRes[,counts_hat])))
+	polyCol <- colVec[1]
 	
 	topLine <- list(x=xvals, y=resultsY)
 	botLine <- list(x=rev(xvals), y=rep(-1,length(xvals)))
 	polyLines <- rbindlist(list(topLine, botLine), use.names=TRUE)
-	polygon(x=polyLines$x, y=polyLines$y, border=polyCol, col=adjustcolor(polyCol,0.2))
+	polygon(x=polyLines$x, y=polyLines$y, border=polyCol, col=adjustcolor(polyCol,0.2), lwd=2)
 	
 }
 
@@ -130,30 +131,30 @@ addPoly <- function(precinct=1, startTime, stopTime, duration){
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
 	
-	titlePanel("ticketEd: Future parking tickets"),
+	titlePanel("ticketEd: Future parking tickets", windowTitle="ticketEd"),
 	
 	
 	fluidRow(
-		column(4, 
+		column(5, offset=1,
 			wellPanel(
 				selectInput("dropdownPrecinct", h5("Select Precinct"), choices=precs, selected=precs[1]),
 				selectInput('dropHorizon', h5("Select Forecast Horizon"), choices=c("24-hour","7-day"))
 			)
 		),
 		
-		column(5,
+		column(6,
 			plotOutput('map', click='map_click')
 		)
 	),
 	
 	fluidRow(align='center',
-		column(10, offset=0, align='center',
+		column(12, offset=0, align='center',
 			plotOutput('ticketTS')
 		)
 	),
 	
 	fluidRow(align='center',
-		column(10, offset=0, align='center',
+		column(12, offset=0, align='center',
 			uiOutput('dateSlider')
 		)
 	)
