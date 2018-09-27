@@ -34,9 +34,6 @@ sp_ps <- SpatialPolygons(ps)
 po_proj <- proj4string(prec_outline)
 
 
-
-
-
 # =========================
 # = Handy Input Varialbes =
 # =========================
@@ -81,12 +78,6 @@ makeTS <- function(precinct=1, startTime=NULL, stopTime=NULL){
 	}else {
 		fhLabel <- paste(elap, "Forecast", sep="-day ")
 	}
-	
-	# if(elap=="7"){
-	# 	fhLabel <- "7-day Forecast"
-	# }else{
-	# 	fhLabel <- "Forecast"
-	# }
 	
 	plot(tr[,datetime_rnd], tr[,counts_hat], type='l', ylab="Tickets per 15 min", xlab="Date")
 	mtext(fhLabel, side=3, adj=0.05, line=0.1, font=2, cex=1.2)
@@ -145,7 +136,6 @@ ui <- fluidPage(
 	fluidRow(
 		column(4, 
 			wellPanel(
-				# sliderInput("range", label = h5("Select Dates"), min=min_time, max=max_time, value=start_range, timeFormat="%d-%b %H:%M"),
 				selectInput("dropdownPrecinct", h5("Select Precinct"), choices=precs, selected=precs[1]),
 				selectInput('dropHorizon', h5("Select Forecast Horizon"), choices=c("24-hour","7-day"))
 			)
@@ -164,70 +154,17 @@ ui <- fluidPage(
 	
 	fluidRow(align='center',
 		column(10, offset=0, align='center',
-			# sliderInput("dateRange", label = h5("Select Dates"), min=min_time, max=max_time, value=start_range, timeFormat="%d-%b %H:%M")
 			uiOutput('dateSlider')
 		)
 	)
-
-	# sidebarLayout(
-#
-# 		sidebarPanel(width=5,
-# 				sliderInput("range", label = h5("Select Dates"), min=min_time, max=max_time, value=start_range, timeFormat="%d-%b %H:%M"),
-# 				selectInput("dropdownPrecinct", h5("Select Precinct"), choices=precs, selected=precs[1])
-# 		),
-#
-# 		mainPanel('Parking Map')
-#
-#
-#
-# 	),
-	
-	
-	# fluidRow(column(4, offset=4,
-#
-# 			plotOutput('map', click='map_click')
-#
-# 		)
-# 	),
-	# fluidRow(column(4, offset=4,
-# 			textOutput('map_coords')
-# 		)
-	# )
-	
-	
 	
 )
+
 
 # ==========
 # = Server =
 # ==========
-# Define server logic required to draw a histogram ----
 server <- function(input, output){
-	
-	# precUse <- function(){return(1)}
-	
-	# doesn't work
-	# precUse <- reactiveValues()
-	# precUse$prec <- point2prec(input$map_click$x, input$map_click$y)
-	
-	# precUse <- reactiveValues(point2prec(input$map_click$x, input$map_click$y)) # doesn't work
-	
-	# precUse <- point2prec(input$map_click$x, input$map_click$y) # doesn't work
-	
-	# output$map <- makeMap()
-	
-	# precUse <- eventReactive(input$map_click, {
-	# 	point2prec(input$map_click$x, input$map_click$y) # works, but always overwrite to default
-	# })
-	
-	# dm <- reactive({
-# 		if(is.null(input$dropHorizon)){
-# 			max_time
-# 		}else{
-# 			c('24-hour'=max_time_24, '7-day'=max_time)[input$dropHorizon]
-# 		}
-# 	})
-	
 	
 	output$dateSlider <- renderUI({
 		
@@ -242,7 +179,6 @@ server <- function(input, output){
 	})
 	
 	observe({
-		# print(input$dateRange)
 		print(input$dropHorizon)
 	})
 	
