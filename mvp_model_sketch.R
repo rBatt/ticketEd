@@ -15,6 +15,12 @@ dat0 <- fread(file)
 dat0[,datetime_rnd:=as.POSIXct(datetime_rnd)]
 dat <- dat0[datetime_rnd>=as.POSIXct("2016-06-30") & datetime_rnd<=as.POSIXct("2017-6-30")]
 dat <- dat[order(datetime_rnd)]
+
+dat[,dow:=as.integer(format.Date(datetime_rnd, format="%u"))-1]
+dat[,hour:=hour(datetime_rnd)]
+dat[,month:=month(datetime_rnd)]
+dat[,minute:=minute(datetime_rnd)]
+
 dat[,dow:=as.integer(dow)]
 dat[,hour:=as.integer(hour)]
 dat[,month:=as.integer(month)]
@@ -25,10 +31,10 @@ dat[,minute:=as.integer(minute)]
 # = Regularize Time Series =
 # ==========================
 reg_datetime_seq <- seq(from=dat[,min(datetime_rnd)], to=dat[,max(datetime_rnd)], by="15 min")
-reg_dt <- data.table(CJ(datetime_rnd=reg_datetime_seq, ViolationCounty=dat[,unique(ViolationCounty)], SubDivision=dat[,unique(SubDivision)]))
+reg_dt <- data.table(CJ(datetime_rnd=reg_datetime_seq, ViolationCounty=dat[,unique(ViolationCounty)], ViolationPrecinct=dat[,unique(ViolationPrecinct)]))
 reg_dt[,c("dow","hour","month","minute"):=list(dow=as.integer(format.Date(datetime_rnd, format="%u"))-1, hour=hour(datetime_rnd), month=month(datetime_rnd), minute=minute(datetime_rnd))]
 
-on_cols <- c("datetime_rnd", "ViolationCounty", "SubDivision", "dow", 'hour', "month", 'minute')
+on_cols <- c("datetime_rnd", "ViolationCounty", "ViolationPrecinct", "dow", 'hour', "month", 'minute')
 dat2 <- merge(dat, reg_dt, by=on_cols, all=TRUE)
 dat2[is.na(counts), counts:=0]
 
@@ -36,11 +42,18 @@ dat2[is.na(counts), counts:=0]
 # =====================================================
 # = Select a Random SubDivision, Plot the Time Series =
 # =====================================================
-arbSD <- "C8" # there are 138 subdivisions
-egDat <- dat2[SubDivision==arbSD]
+arbSD <- "1" # there are 138 subdivisions
+egDat <- dat2[ViolationPrecinct==arbSD]
 egDat[,plot(datetime_rnd, counts, type='l')]
 # egDat[,hist(counts)]
 # egDat[,table(pmin(1, counts))] # ~20% of observations are > 0
+
+
+# =================================================
+# = Save Example Data for Quick Tetsing Elsewhere =
+# =================================================
+save(egDat, file=file.path(proj_dir, "/data_int/egDat.RData"))
+fwrite(egDat, file=file.path(proj_dir, "/data_int/egDat.csv"))
 
 
 # ============================
@@ -69,7 +82,8 @@ dimnames(tsVec_lag) <- list(NULL, paste0('lag',nLag:1))
 mod2_X <- cbind(y=tsVec, tsVec_lag)
 mod2 <- glm(y~lag1+lag2, family=poisson, data=as.data.frame(mod2_X))
 # AIC = 37343
-# cor(tsVec, fitted(mod2)) # 0.2753909
+# cor(tsVec, fitted(mod2)) # 0.2753909 # when i was still using subdivision
+# cor(tsVec, fitted(mod2)) # 0.8293398 ## after update to precinct
 
 
 nLag <- 12
@@ -131,6 +145,7 @@ mod6_X <- data.frame(mod6_X, time_indices)
 mod6 <- glm(y~., family=poisson, data=mod6_X) # pretty fast, maybe 5 seconds
 # AIC = 28959
 # cor(tsVec, fitted(mod6)) # 0.4591734
+# cor(tsVec, fitted(mod6)) # 0.9537101 ## after update to using precinct instead of subidivision
 
 # ===========
 # = Summary =
