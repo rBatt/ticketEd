@@ -67,14 +67,29 @@ makeMap <- function(prec=NULL, ...){
 	}
 }
 
-makeTS <- function(precinct=1, startTime=NULL, stopTime=NULL, duration=NULL){
+makeTS <- function(precinct=1, startTime=NULL, stopTime=NULL){
 	# ind <- results[,ViolationPrecinct==precinct]
 	if("ViolationPrecinct"!=key(results)[1]){setkey(results, ViolationPrecinct, datetime_rnd)}
 	tr <- results[.(precinct)]
 	if(!is.null(stopTime)){
 		tr <- tr[datetime_rnd <= stopTime]
 	}
+	dr <- range(tr[,datetime_rnd])
+	elap <- as.character(round(difftime(dr[2], dr[1], units='days')))
+	if(elap=='1'){
+		fhLabel <- "24-hour Forecast"
+	}else {
+		fhLabel <- paste(elap, "Forecast", sep="-day ")
+	}
+	
+	# if(elap=="7"){
+	# 	fhLabel <- "7-day Forecast"
+	# }else{
+	# 	fhLabel <- "Forecast"
+	# }
+	
 	plot(tr[,datetime_rnd], tr[,counts_hat], type='l', ylab="Tickets per 15 min", xlab="Date")
+	mtext(fhLabel, side=3, adj=0.05, line=0.1, font=2, cex=1.2)
 }
 
 zCol <- function (nCols, Z){
