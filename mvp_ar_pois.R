@@ -5,7 +5,7 @@
 # ar_pois
 # level 0
 # some sort of wrapper function, not sure of exact linkage to functions below
-ar_pois <- function(dat, holdType=c("end"), nHold=672, nAhead=24*7*(60/nMin), nMin=15, date_col="datetime_rnd", resp_col="counts", time_preds=c("minute", "hour", "dow", "month")){
+ar_pois <- function(dat, holdType=c("end"), nHold=672, nAhead=24*7*(60/nMin), nMin=15, date_col="datetime_rnd", resp_col="counts", time_preds=c("minute", "hour", "dow", "month"), lags=c(1,2,3,4, (24*(60/nMin))+c(-1,0,1), (7*24*(60/nMin))+c(-1,0,1))){
 	time_preds <- match.arg(time_preds, several.ok=TRUE)
 	
 	train_ind <- ar_pois_hold(dat, holdType, nHold, returnType="ind")
@@ -14,16 +14,20 @@ ar_pois <- function(dat, holdType=c("end"), nHold=672, nAhead=24*7*(60/nMin), nM
 	
 	dt <- dat_train[,get(date_col)]
 	y <- dat_train[,get(resp_col)]
-	train_mod <- ar_pois_fit(y, xreg=time_factors(dt, types=time_preds))
+	train_mod <- ar_pois_fit(y, xreg=time_factors(dt, types=time_preds, lag_max=max(lags)), lags=lags)
 	
-	dat_forecast <- ar_pois_forecast(train_mod, nAhead=nAhead, nMin=nMin)
+	dat_forecast <- ar_pois_forecast(mod=train_mod, nAhead=nAhead, nMin=nMin, time_preds=time_preds)
 	names_df <- names(dat_forecast)
 	if("minute"%in%names_df){dat_forecast[,minute:=as.integer(as.character(minute))]}
 	if("hour"%in%names_df){dat_forecast[,hour:=as.integer(as.character(hour))]}
 	if("dow"%in%names_df){dat_forecast[,dow:=as.integer(as.character(dow))]}
 	if("month"%in%names_df){dat_forecast[,month:=as.integer(as.character(month))]}
 	
-	dat_out <- merge(dat_test, dat_forecast, by=c('datetime_rnd', 'minute', 'hour', 'dow', 'month'), all=TRUE)
+	col_by <- intersect(colnames(dat_test), colnames(dat_forecast))
+	dat_out <- merge(dat_test, dat_forecast, by=col_by, all=TRUE)
+	# dat_out <- merge(dat_test, dat_forecast, by=c('datetime_rnd', 'minute', 'hour', 'dow', 'month'), all=TRUE)
+	# dat_out <- merge(dat_test, dat_forecast, by=c('datetime_rnd'), all=TRUE)
+	dat_out <- dat_out[,list(datetime_rnd, counts, counts_hat)]
 	
 	return(dat_out)
 }
