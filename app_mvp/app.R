@@ -122,6 +122,8 @@ addPoly <- function(precinct=1, startTime, stopTime, duration){
 	polyLines <- rbindlist(list(topLine, botLine), use.names=TRUE)
 	polygon(x=polyLines$x, y=polyLines$y, border=polyCol, col=adjustcolor(polyCol,0.2), lwd=2)
 	
+	mtext(paste0("Total tickets issued = ", round(sum(resultsY))), side=3, line=0, adj=0.9, font=2, cex=1.2)
+	
 }
 
 
@@ -169,7 +171,7 @@ server <- function(input, output){
 	
 	output$dateSlider <- renderUI({
 		
-		sliderInput("dateRange", label = h5("Select Dates"), min=min_time, max=c('24-hour'=max_time_24, '7-day'=max_time)[input$dropHorizon], value=start_range, timeFormat="%d-%b %H:%M")
+		sliderInput("dateRange", label = h5("Select Dates"), min=min_time, max=c('24-hour'=max_time_24, '7-day'=max_time)[input$dropHorizon], value=start_range, timeFormat="%d-%b %H:%M", timezone='UTC', width="85%")
 		
 	})
 	
