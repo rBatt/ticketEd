@@ -10,18 +10,18 @@ library(rgdal)
 # ========
 # = Data =
 # ========
-proj_dir <- "/Users/Battrd/Documents/School&Work/Insight/parking"
-data_dir <- "data_int"
+# proj_dir <- "/Users/Battrd/Documents/School&Work/Insight/parking"
+# data_dir <- "data_int"
 
 results_file <- "mvp_f_out2.csv"
-results_dir <- file.path(proj_dir, data_dir, results_file)
-results <- fread(results_dir)
+# results_dir <- file.path(data_dir, results_file)
+results <- fread(results_file)
 results[,datetime_rnd:=fasttime::fastPOSIXct(datetime_rnd)]
 setkey(results, ViolationPrecinct, datetime_rnd)
 
 # precinct shape file
-shp_path <- "/Users/Battrd/Documents/School&Work/Insight/parking/data/PolicePrecincts/geo_export_210823e9-ae0b-4030-807e-35d84173eb87.shp"
-layer <- ogrListLayers(shp_path)
+shp_path <- "./PolicePrecincts/geo_export_210823e9-ae0b-4030-807e-35d84173eb87.shp" #file.path(getwd(), "geo_export.shp")  #"geo_export_210823e9-ae0b-4030-807e-35d84173eb87.shp"
+layer <- ogrListLayers(dsn=shp_path)
 ogrInfo(shp_path, layer=layer)
 prec_outline <- readOGR(shp_path, layer=layer)
 prec_ind <- prec_outline@data$precinct %in% results[,unique(ViolationPrecinct)]
