@@ -129,7 +129,7 @@ addPoly <- function(precinct=1, startTime, stopTime, duration){
 	tStep <- diff(tRes[,datetime_rnd])[1]
 	xvals <- seq(startTime, stopTime, by=tStep)
 	resultsY <- tRes[datetime_rnd%in%xvals, counts_hat]
-	print(resultsY)
+	# print(resultsY)
 	
 	getQ <- function(x){quantile(x, seq(0.1, 0.9, length.out=100))}
 	colVec <- zCol(256, c(mean(resultsY), getQ(tRes[,counts_hat])))
@@ -176,7 +176,13 @@ ui <- fluidPage(
 	  }
 	  });
 	'),
-	
+	tags$script('
+	$(document).on("keyup", function(e) {
+	  if(e.keyCode == 13){
+	    Shiny.onInputChange("keyPressed", Math.random());
+	  }
+	});
+	'),
 	
 	
 	fluidRow(
@@ -213,21 +219,48 @@ ui <- fluidPage(
 # ==========
 server <- function(input, output){
 	
+	def_prec_entered <- reactiveValues()
+	observeEvent(input$keyPressed, {
+		# print(input$enterAddress)
+		gc_ll <- geocodeHERE::geocodeHERE_simple(input$enterAddress, App_id='JaLSMHSVoXr5YkHwoxLX', App_code='rbcl6gPn0DqElAs9-sm0Ig')
+		print(gc_ll)
+		if(all(!is.na(gc_ll))){
+			def_prec_entered$a <- findPrecinct(xc=gc_ll$Longitude, yc=gc_ll$Latitude)
+		}
+		print(def_prec_entered$a)
+		# print(gc_ll)
+		# print(def_prec)
+	})
+	
 	output$dropdowns <- renderUI({
-		# Sys.sleep(3)
-		# req(input$geolocation)
-		# Sys.sleep(1)
-		# findPrecinct(xc=-73.985, yc=40.725) # should be precs[5] (precinct 9)
-		if(length(input$geolocation)>0 && input$geolocation){ # need && so that it stops if first condition isn't true, b/c if it's empty then can't test if T/F (will throw error)
-			
-			# def_prec <- 9
+		def_prec <- NULL # start off with NULL; makes it easier to code various options w/o nesting if(){}else{}
+		if(length(def_prec_entered$a)>0 && !is.null(def_prec_entered$a) && is.finite(def_prec_entered$a)){
+			def_prec <- def_prec_entered$a
+		}
+		if(length(input$geolocation)>0 && input$geolocation && input$enterAddress==''){ # need && so that it stops if first condition isn't true, b/c if it's empty then can't test if T/F (will throw error); also, only use the geolocation if the user hasn't entered an address			
 			def_prec <- findPrecinct(xc=input$long, yc=input$lat)
 			# def_prec <- integer(0)#findPrecinct(xc=input$long, yc=input$lat)
 			# if(length(def_prec)==0L){def_prec <- 1} # findPrecinct will return a length-0 integer if a match isn't found, in which case just go to precinct 1 as default
-		}else{ # if input$geolocation isn't set, or if it's FALSE, then just use prec=1
+		} # if input$geolocation isn't set, or if it's FALSE
+		
+		# if(length(input$enterAddress) >0 && input$enterAddress!=''){ # if geo
+		# 	gc_ll <- geocodeHERE::geocodeHERE_simple(input$enterAddress, App_id='JaLSMHSVoXr5YkHwoxLX', App_code='rbcl6gPn0DqElAs9-sm0Ig')
+		# 	def_prec <- findPrecinct(xc=gc_ll$Longitude, yc=gc_ll$Latitude)
+		# }
+		
+		# if(!is.null(def_prec_entered$a)){
+# 			def_prec <- def_prec_entered$a
+# 			print(def_prec)
+# 		}
+		
+		def_prec <- isolate(def_prec_entered$a)
+		
+		if(is.null(def_prec)){#&& !all(is.finite(def_prec)) # testing for any non-finite values covers Inf, -Inf, NA, etc (as well as text input instead of numeric, though that shouldn't happen)
 			def_prec <- 1
 		}
+		
 		wellPanel(
+			textInput('enterAddress', h5("Search Address"), value='', placeholder="35 E 21st St, New York, NY"),
 			selectInput("dropdownPrecinct", h5("Select Precinct"), choices=precs, selected=def_prec),
 			selectInput('dropHorizon', h5("Select Forecast Horizon"), choices=c("24-hour","7-day"))
 		)
@@ -254,6 +287,8 @@ server <- function(input, output){
 		makeMap(precUse<-input$dropdownPrecinct)
 		
 	})
+	
+	# observe({print(input$keyPressed)})
 	
 	# observe({
 	# 	print(input$dropHorizon)
