@@ -46,14 +46,31 @@ max_time_24 <- start_range[2]
 # ====================
 # = Figure Functions =
 # ====================
-point2prec <- function(x=-74, y=40.735){
-	if(is.null(x) | is.null(y)){
-		return(NULL)
+getPolyCoords <- function(poly){
+	# this function gets coordinates for all the polygons that are part of a single shape (sometimes multiple islands are part of a precinct, e.g., so isn't just 1 shape always)
+	poly_list <- poly@polygons[[1]]@Polygons
+	if(length(poly_list)>1){
+		coords <- sapply(poly_list, function(x)x@coords)
+		cout <- Reduce(rbind, coords)
 	}else{
-		testObj <- SpatialPoints(cbind(x, y))
-		proj4string(testObj) <- po_proj
-		over(testObj, prec_outline)$precinct
+		cout <- poly_list[[1]]@coords
 	}
+	return(cout)
+}
+point2prec <- function(poly, x=-74, y=40.735){
+	# point2prec(sp_ps[1], x=-74.01, y=40.71) # example for precinct 1
+	p2 <- getPolyCoords(poly)
+	ind_out <- point.in.polygon(x, y, pol.x=p2[,1], pol.y=p2[,2]) != 0
+	return(ind_out)
+}
+findPrecinct <- function(xc, yc, all_poly=sp_ps){
+	# findPrecinct(xc=-74.01, yc=40.71)
+	# findPrecinct(xc=-73.985, yc=40.725) # should be precs[5] (precinct 9)
+	ind <- vector('logical',length(sp_ps))
+	for(s in 1:length(sp_ps)){
+		ind[s] <- point2prec(sp_ps[s], x=xc, y=yc)
+	}
+	return(precs[ind])
 }
 makeMap <- function(prec=NULL, ...){
 	par(mar=rep(0,4))
@@ -74,13 +91,13 @@ makeTS <- function(precinct=1, startTime=NULL, stopTime=NULL){
 	dr <- range(tr[,datetime_rnd])
 	elap <- as.character(round(difftime(dr[2], dr[1], units='days')))
 	if(elap=='1'){
-		fhLabel <- "24-hour Forecast"
+		fhLabel <- "Today's Forecast" #"24-hour Forecast"
 	}else {
 		fhLabel <- paste(elap, "Forecast", sep="-day ")
 	}
 	
 	plot(tr[,datetime_rnd], tr[,counts_hat], type='l', ylab="Tickets per 15 min", xlab="Date")
-	mtext(fhLabel, side=3, adj=0.05, line=0.1, font=2, cex=1.2)
+	mtext(fhLabel, side=3, adj=0.04689, line=1, font=2, cex=1.2)
 }
 
 zCol <- function (nCols, Z){
@@ -112,19 +129,23 @@ addPoly <- function(precinct=1, startTime, stopTime, duration){
 	tStep <- diff(tRes[,datetime_rnd])[1]
 	xvals <- seq(startTime, stopTime, by=tStep)
 	resultsY <- tRes[datetime_rnd%in%xvals, counts_hat]
+	print(resultsY)
 	
 	getQ <- function(x){quantile(x, seq(0.1, 0.9, length.out=100))}
 	colVec <- zCol(256, c(mean(resultsY), getQ(tRes[,counts_hat])))
 	polyCol <- colVec[1]
 	
 	topLine <- list(x=xvals, y=resultsY)
+	# print(topLine)
 	botLine <- list(x=rev(xvals), y=rep(-1,length(xvals)))
+	# print(botLine)
 	polyLines <- rbindlist(list(topLine, botLine), use.names=TRUE)
 	polygon(x=polyLines$x, y=polyLines$y, border=polyCol, col=adjustcolor(polyCol,0.2), lwd=2)
 	
-	mtext(paste0("Total tickets issued = ", round(sum(resultsY))), side=3, line=0, adj=0.9, font=2, cex=1.2)
+	mtext(paste0("Total tickets issued = ", round(sum(resultsY))), side=3, line=0, adj=0.05, font=2, cex=1.2)
 	
 }
+
 
 
 # ======
@@ -136,12 +157,35 @@ ui <- fluidPage(
 	titlePanel("ticketEd: Future parking tickets", windowTitle="ticketEd"),
 	
 	
+	tags$script('
+	  $(document).ready(function () {
+	    navigator.geolocation.getCurrentPosition(onSuccess, onError);
+
+	    function onError (err) {
+	    Shiny.onInputChange("geolocation", false);
+	    }
+    
+	   function onSuccess (position) {
+	      setTimeout(function () {
+	          var coords = position.coords;
+	          console.log(coords.latitude + ", " + coords.longitude);
+	          Shiny.onInputChange("geolocation", true);
+	          Shiny.onInputChange("lat", coords.latitude);
+	          Shiny.onInputChange("long", coords.longitude);
+	      }, 1100)
+	  }
+	  });
+	'),
+	
+	
+	
 	fluidRow(
 		column(5, offset=1,
-			wellPanel(
-				selectInput("dropdownPrecinct", h5("Select Precinct"), choices=precs, selected=precs[1]),
-				selectInput('dropHorizon', h5("Select Forecast Horizon"), choices=c("24-hour","7-day"))
-			)
+			uiOutput('dropdowns')
+			# wellPanel(
+# 				selectInput("dropdownPrecinct", h5("Select Precinct"), choices=precs, selected=def_prec),
+# 				selectInput('dropHorizon', h5("Select Forecast Horizon"), choices=c("24-hour","7-day"))
+# 			)
 		),
 		
 		column(6,
@@ -169,9 +213,39 @@ ui <- fluidPage(
 # ==========
 server <- function(input, output){
 	
+	output$dropdowns <- renderUI({
+		# Sys.sleep(3)
+		# req(input$geolocation)
+		# Sys.sleep(1)
+		# findPrecinct(xc=-73.985, yc=40.725) # should be precs[5] (precinct 9)
+		if(length(input$geolocation)>0 && input$geolocation){ # need && so that it stops if first condition isn't true, b/c if it's empty then can't test if T/F (will throw error)
+			
+			# def_prec <- 9
+			def_prec <- findPrecinct(xc=input$long, yc=input$lat)
+			# def_prec <- integer(0)#findPrecinct(xc=input$long, yc=input$lat)
+			# if(length(def_prec)==0L){def_prec <- 1} # findPrecinct will return a length-0 integer if a match isn't found, in which case just go to precinct 1 as default
+		}else{ # if input$geolocation isn't set, or if it's FALSE, then just use prec=1
+			def_prec <- 1
+		}
+		wellPanel(
+			selectInput("dropdownPrecinct", h5("Select Precinct"), choices=precs, selected=def_prec),
+			selectInput('dropHorizon', h5("Select Forecast Horizon"), choices=c("24-hour","7-day"))
+		)
+	})
+	
 	output$dateSlider <- renderUI({
+		req(input$dropHorizon)
+		if(input$dropHorizon=="24-hour"){
+			cur_time <- suppressWarnings({format(Sys.time(), "2017-01-01 %H:%M:%S", tz='America/New_York')})
+			vec0 <- seq(from=min_time, to=max_time, by=60*15)
+			vec <- unique(format(vec0, "2017-01-01 %H:%M:%S"))
+			min_time2 <- vec0[which.min(abs(as.POSIXct(vec)-as.POSIXct(cur_time)))]
+			start_range[1] <- min_time2
+		}else{
+			# min_time2 <- min_time
+		}
 		
-		sliderInput("dateRange", label = h5("Select Dates"), min=min_time, max=c('24-hour'=max_time_24, '7-day'=max_time)[input$dropHorizon], value=start_range, timeFormat="%d-%b %H:%M", timezone='UTC', width="85%")
+		sliderInput("dateRange", label = h5("Select Dates"), min=min_time, max=c('24-hour'=max_time_24, '7-day'=max_time)[input$dropHorizon], value=start_range, timeFormat="%d-%b %H:%M", timezone='UTC', step=60*15, width="85%")
 		
 	})
 	
@@ -181,14 +255,34 @@ server <- function(input, output){
 		
 	})
 	
-	observe({
-		print(input$dropHorizon)
-	})
+	# observe({
+	# 	print(input$dropHorizon)
+	# 	print(paste('geoloc logic =', input$geolocation))
+	# 	print(paste('lon =', input$long))
+	# 	print(paste('lat =', input$lat))
+	# 	print(Sys.time())
+	# 	cat("\n")
+	# 	# print(paste(c('lon =','lat ='), c(input$long, input$lat)))
+	# })
+	# observe({
+	# 	print(input$long)
+	# 	# print(c(input$lon, input$lat))
+	# })
 	
 	output$ticketTS <- renderPlot({
+		# req(input$dateRange, input$dropHorizon, input$dropdownPrecinct, input$geolocation)
+		req(input$dateRange, input$dropHorizon, input$dropdownPrecinct)
+		# req(input$dateRange)
+		# req(input$dropHorizon)
+		# req(input$dropdownPrecinct)
 		p <- as.integer(input$dropdownPrecinct)
-		makeTS(p, stopTime=c('24-hour'=max_time_24, '7-day'=max_time)[input$dropHorizon])		
+		makeTS(p, stopTime=c('24-hour'=max_time_24, '7-day'=max_time)[input$dropHorizon])
 		addPoly(p, startTime=input$dateRange[1], stopTime=input$dateRange[2])
+		
+		# makeTS(1, stopTime=max_time_24)
+		# testD1 <- as.POSIXct("2017-06-20 07:30:00")
+		# testD2 <- as.POSIXct("2017-06-21 00:15:00")
+		# addPoly(1, startTime=testD1, stopTime=testD2)
 	})
 	
 	# output$map_coords <- renderPrint({c(input$map_click$x, input$map_click$y)})
