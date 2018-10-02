@@ -82,7 +82,6 @@ makeMap <- function(prec=NULL, ...){
 }
 
 makeTS <- function(precinct=1, startTime=NULL, stopTime=NULL){
-	# ind <- results[,ViolationPrecinct==precinct]
 	if("ViolationPrecinct"!=key(results)[1]){setkey(results, ViolationPrecinct, datetime_rnd)}
 	tr <- results[.(precinct)]
 	if(!is.null(stopTime)){
@@ -108,7 +107,6 @@ zCol <- function (nCols, Z){
 }
 
 addPoly <- function(precinct=1, startTime, stopTime, duration){
-	# print((startTime))
 	# fill in time components
 	if(missing(duration)){
 		duration <- stopTime - startTime
@@ -129,16 +127,13 @@ addPoly <- function(precinct=1, startTime, stopTime, duration){
 	tStep <- diff(tRes[,datetime_rnd])[1]
 	xvals <- seq(startTime, stopTime, by=tStep)
 	resultsY <- tRes[datetime_rnd%in%xvals, counts_hat]
-	# print(resultsY)
 	
 	getQ <- function(x){quantile(x, seq(0.1, 0.9, length.out=100))}
 	colVec <- zCol(256, c(mean(resultsY), getQ(tRes[,counts_hat])))
 	polyCol <- colVec[1]
 	
 	topLine <- list(x=xvals, y=resultsY)
-	# print(topLine)
 	botLine <- list(x=rev(xvals), y=rep(-1,length(xvals)))
-	# print(botLine)
 	polyLines <- rbindlist(list(topLine, botLine), use.names=TRUE)
 	polygon(x=polyLines$x, y=polyLines$y, border=polyCol, col=adjustcolor(polyCol,0.2), lwd=2)
 	
@@ -188,10 +183,6 @@ ui <- fluidPage(
 	fluidRow(
 		column(5, offset=1,
 			uiOutput('dropdowns')
-			# wellPanel(
-# 				selectInput("dropdownPrecinct", h5("Select Precinct"), choices=precs, selected=def_prec),
-# 				selectInput('dropHorizon', h5("Select Forecast Horizon"), choices=c("24-hour","7-day"))
-# 			)
 		),
 		
 		column(6,
@@ -218,47 +209,61 @@ ui <- fluidPage(
 # = Server =
 # ==========
 server <- function(input, output){
+	# 3 ways that the precinct can be set:
+	#   - dropdown menu
+	#   - browser geolocation based on IP
+	#   - user enter's an address, which is geolocated, and then matched to precinct
 	
-	def_prec_entered <- reactiveValues()
-	observeEvent(input$keyPressed, {
-		# print(input$enterAddress)
-		gc_ll <- geocodeHERE::geocodeHERE_simple(input$enterAddress, App_id='JaLSMHSVoXr5YkHwoxLX', App_code='rbcl6gPn0DqElAs9-sm0Ig')
-		print(gc_ll)
-		if(all(!is.na(gc_ll))){
+	# This is for the search bar part of the UI
+	# It is the only UI element (as input) that doesn't react to other input or conditionals
+	def_prec_entered <- reactiveValues() # this will hold precinct value based on user's address search
+	observeEvent(input$keyPressed, { # every time 'enter' is pressed, this value will update, and then expression in {} will run
+		
+		# sign up for free API key at
+		# https://developer.here.com/
+		id <- 'JaLSMHSVoXr5YkHwoxLX'
+		code <- 'rbcl6gPn0DqElAs9-sm0Ig'
+		gc_ll <- geocodeHERE::geocodeHERE_simple(input$enterAddress, App_id=id, App_code=code)
+		if(all(!is.na(gc_ll))){ # only match geolocated address (i.e., lon/lat) to precinct if lon/lat not NA or missing
 			def_prec_entered$a <- findPrecinct(xc=gc_ll$Longitude, yc=gc_ll$Latitude)
 		}
-		print(def_prec_entered$a)
-		# print(gc_ll)
-		# print(def_prec)
 	})
 	
+	# Render the dynamic aspects of the UI
+	# all of the sliders and bars etc depend on other inputs
+	# except for the address search bar part of the UI, which doesn't react to any other UI elements
+	# all reactive UI elements have to be in here
+	# they are called 'dropdowns' here and in UI section above
 	output$dropdowns <- renderUI({
 		def_prec <- NULL # start off with NULL; makes it easier to code various options w/o nesting if(){}else{}
+		
+		# update 'default' precinct w/ user location
+		# if these conditions are met
+		# which basically test if it's available
+		# but also if the user has tried to enter an address
+		if(length(input$geolocation)>0 && input$geolocation && input$enterAddress==''){ # need && so that it stops if first condition isn't true, b/c if it's empty then can't test if T/F (will throw error); also, only use the geolocation if the user hasn't entered an address			
+			def_prec <- findPrecinct(xc=input$long, yc=input$lat)
+		}
+		
+		# update the 'default' precinct for the dropdown menu w/
+		# the geolocated address => precinct if 
+		# a bunch of conditions are met
 		if(length(def_prec_entered$a)>0 && !is.null(def_prec_entered$a) && is.finite(def_prec_entered$a)){
 			def_prec <- def_prec_entered$a
 		}
-		if(length(input$geolocation)>0 && input$geolocation && input$enterAddress==''){ # need && so that it stops if first condition isn't true, b/c if it's empty then can't test if T/F (will throw error); also, only use the geolocation if the user hasn't entered an address			
-			def_prec <- findPrecinct(xc=input$long, yc=input$lat)
-			# def_prec <- integer(0)#findPrecinct(xc=input$long, yc=input$lat)
-			# if(length(def_prec)==0L){def_prec <- 1} # findPrecinct will return a length-0 integer if a match isn't found, in which case just go to precinct 1 as default
-		} # if input$geolocation isn't set, or if it's FALSE
 		
-		# if(length(input$enterAddress) >0 && input$enterAddress!=''){ # if geo
-		# 	gc_ll <- geocodeHERE::geocodeHERE_simple(input$enterAddress, App_id='JaLSMHSVoXr5YkHwoxLX', App_code='rbcl6gPn0DqElAs9-sm0Ig')
-		# 	def_prec <- findPrecinct(xc=gc_ll$Longitude, yc=gc_ll$Latitude)
-		# }
-		
-		# if(!is.null(def_prec_entered$a)){
-# 			def_prec <- def_prec_entered$a
-# 			print(def_prec)
-# 		}
-		
-		def_prec <- isolate(def_prec_entered$a)
-		
-		if(is.null(def_prec)){#&& !all(is.finite(def_prec)) # testing for any non-finite values covers Inf, -Inf, NA, etc (as well as text input instead of numeric, though that shouldn't happen)
+		# a default precinct to have selected
+		# default is precinct 1
+		if(is.null(def_prec)){# testing for any non-finite values covers Inf, -Inf, NA, etc (as well as text input instead of numeric, though that shouldn't happen)
 			def_prec <- 1
 		}
 		
+		# panel of user inputs/ options at top left of page
+		# includes, address search bar
+		# precinct select dropdown
+		# and forecast horizon dropdown
+		# these are collectively called 'dropdowns' elsewhere (in UI) even though first is a textInput
+		# (the text input affects the precinct dropdown)
 		wellPanel(
 			textInput('enterAddress', h5("Search Address"), value='', placeholder="35 E 21st St, New York, NY"),
 			selectInput("dropdownPrecinct", h5("Select Precinct"), choices=precs, selected=def_prec),
@@ -266,58 +271,37 @@ server <- function(input, output){
 		)
 	})
 	
+	# time slider bar
 	output$dateSlider <- renderUI({
 		req(input$dropHorizon)
+		
+		# below sets the start of the slider to current hour (in default 1st day)
+		# if the forecast horizon is 24 hours
 		if(input$dropHorizon=="24-hour"){
 			cur_time <- suppressWarnings({format(Sys.time(), "2017-01-01 %H:%M:%S", tz='America/New_York')})
 			vec0 <- seq(from=min_time, to=max_time, by=60*15)
 			vec <- unique(format(vec0, "2017-01-01 %H:%M:%S"))
 			min_time2 <- vec0[which.min(abs(as.POSIXct(vec)-as.POSIXct(cur_time)))]
 			start_range[1] <- min_time2
-		}else{
-			# min_time2 <- min_time
 		}
 		
+		# defines the slider bar
 		sliderInput("dateRange", label = h5("Select Dates"), min=min_time, max=c('24-hour'=max_time_24, '7-day'=max_time)[input$dropHorizon], value=start_range, timeFormat="%d-%b %H:%M", timezone='UTC', step=60*15, width="85%")
 		
 	})
 	
+	# makes the map showing precinct selected
 	output$map <- renderPlot({
-		
 		makeMap(precUse<-input$dropdownPrecinct)
-		
 	})
 	
-	# observe({print(input$keyPressed)})
 	
-	# observe({
-	# 	print(input$dropHorizon)
-	# 	print(paste('geoloc logic =', input$geolocation))
-	# 	print(paste('lon =', input$long))
-	# 	print(paste('lat =', input$lat))
-	# 	print(Sys.time())
-	# 	cat("\n")
-	# 	# print(paste(c('lon =','lat ='), c(input$long, input$lat)))
-	# })
-	# observe({
-	# 	print(input$long)
-	# 	# print(c(input$lon, input$lat))
-	# })
-	
+	# adds the time series plot with polygon and ticket counts
 	output$ticketTS <- renderPlot({
-		# req(input$dateRange, input$dropHorizon, input$dropdownPrecinct, input$geolocation)
 		req(input$dateRange, input$dropHorizon, input$dropdownPrecinct)
-		# req(input$dateRange)
-		# req(input$dropHorizon)
-		# req(input$dropdownPrecinct)
 		p <- as.integer(input$dropdownPrecinct)
 		makeTS(p, stopTime=c('24-hour'=max_time_24, '7-day'=max_time)[input$dropHorizon])
 		addPoly(p, startTime=input$dateRange[1], stopTime=input$dateRange[2])
-		
-		# makeTS(1, stopTime=max_time_24)
-		# testD1 <- as.POSIXct("2017-06-20 07:30:00")
-		# testD2 <- as.POSIXct("2017-06-21 00:15:00")
-		# addPoly(1, startTime=testD1, stopTime=testD2)
 	})
 	
 	# output$map_coords <- renderPrint({c(input$map_click$x, input$map_click$y)})
