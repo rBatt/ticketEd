@@ -149,7 +149,7 @@ addPoly <- function(precinct=1, startTime, stopTime, duration){
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
 	
-	titlePanel("ticketEd: Future parking tickets", windowTitle="ticketEd"),
+	titlePanel("ticketEd: Learn to avoid parking tickets", windowTitle="ticketEd"),
 	
 	
 	tags$script('
