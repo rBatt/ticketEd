@@ -1,6 +1,8 @@
 # [ticketEd](http://ticketed.info/): Learn how to avoid parking tickets
 
-[[https://github.com/rBatt/ticketEd/blob/master/figures/parkingTicket.jpeg?raw=true]]
+<p align="center">
+<img src="./figures/parkingTicket.jpeg?raw=TRUE", width="500">
+</p>
 
 ticketEd is a proof-of-concept tool for forecasting parking tickets.
 
