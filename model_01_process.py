@@ -10,6 +10,7 @@ n_ts = len(data.ViolationPrecinct.unique())
 
 #%% split into train and test
 n_precincts = len(data.ViolationPrecinct.unique())
+test_size_per = 24*7*4  # number of observations per precinct; (hours/day)*(days)*(obs/hour)
 test_size = test_size_per*n_precincts
 nrow = data.shape[0]
 nrow_per = nrow/n_precincts
