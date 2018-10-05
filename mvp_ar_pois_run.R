@@ -42,7 +42,7 @@ use_lags <- c(
 # ================
 # = Example Data =
 # ================
-load(file.path(proj_dir, "/data_int/egDat.RData"))
+# load(file.path(proj_dir, "/data_int/egDat.RData"))
 # f_out_eg <- egDat[datetime_rnd<="2017-06-27",j={
 # 	out <- ar_pois(.SD, nHold=n_test, nAhead=forecastHorizon, nMin=nMin, time_preds=time_preds)
 # 	out
@@ -98,3 +98,6 @@ f_out[,datetime_rnd:=as.character(datetime_rnd)]
 fwrite(f_out, file=file.path(proj_dir, "data_int", "mvp_f_out2.csv"))
 
 # f_out[,cor(counts, counts_hat), by='ViolationPrecinct'][,hist(V1)]
+
+# data <- fread(file.path(proj_dir, "data_int", "mvp_f_out2.csv"))
+# data[,plot(counts, counts_hat)]
