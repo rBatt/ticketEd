@@ -34,6 +34,12 @@ sp_ps <- SpatialPolygons(ps)
 po_proj <- proj4string(prec_outline)
 
 
+# read in street length per precinct
+street_leng_per_prec <- fread("street_leng_per_prec.csv")[precinct%in%results[,ViolationPrecinct]]
+street_leng_per_prec[,street_leng:=street_leng/5280] # convert feet to miles
+setnames(street_leng_per_prec, 'precinct', "ViolationPrecinct")
+
+
 # =========================
 # = Handy Input Varialbes =
 # =========================
@@ -123,6 +129,7 @@ addPoly <- function(precinct=1, startTime, stopTime, duration){
 	stopifnot(stopTime <= max_time)
 	
 	tRes <- results[.(precinct)]
+	t_street_leng <- street_leng_per_prec[ViolationPrecinct==list(precinct), street_leng]
 	
 	tStep <- diff(tRes[,datetime_rnd])[1]
 	xvals <- seq(startTime, stopTime, by=tStep)
@@ -137,7 +144,9 @@ addPoly <- function(precinct=1, startTime, stopTime, duration){
 	polyLines <- rbindlist(list(topLine, botLine), use.names=TRUE)
 	polygon(x=polyLines$x, y=polyLines$y, border=polyCol, col=adjustcolor(polyCol,0.2), lwd=2)
 	
-	mtext(paste0("Total tickets issued = ", round(sum(resultsY))), side=3, line=0, adj=0.05, font=2, cex=1.2)
+	baseTickets_mtext <- paste0("Total tickets = ", round(sum(resultsY)))
+	tickets_leng_mtext <- paste0(baseTickets_mtext, " (", round(t_street_leng), " per mile)")
+	mtext(tickets_leng_mtext, side=3, line=0, adj=0.05, font=2, cex=1.2)
 	
 }
 
